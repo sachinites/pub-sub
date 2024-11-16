@@ -10,4 +10,6 @@ typedef enum msg_type_ {
 
 }  msg_type_t;
 
+#define COORD_MSGQ_NAME "/MAIN-COORD-MSGQ"
+
 #endif 

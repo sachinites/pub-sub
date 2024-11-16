@@ -55,6 +55,12 @@ coordinator_init_sql_db() {
 
  }
 
+static void 
+coordinator_listen_msgQ() {
+
+    
+}
+
 static void *
 coordinator_main_fn (void *arg) {
 
@@ -62,6 +68,8 @@ coordinator_main_fn (void *arg) {
     coord_init_publisher_table();
     coord_init_subscriber_table();
     coord_init_pub_sub_table() ;
+    coordinator_listen_msgQ();
+
     return NULL;
 }
 
