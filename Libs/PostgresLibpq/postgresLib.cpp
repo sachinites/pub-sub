@@ -3,52 +3,40 @@
 #include <assert.h>
 #include <memory.h>
 #include <stdbool.h>
-#include "../CLIBuilder/libcli.h"
 #include "postgresLib.h"
 
-static bool log = false;
+static bool log = true;
 
 PGconn *
-postgres_get_user_connection(const char *pg_server_ipaddr, const char *user_name)
+postgres_get_user_connection(const char *pg_server_ipaddr, const char *user_name, const char *passwd)
 {
-
-    unsigned char sql_string[128];
+    char sql_string[128];
 
     sprintf((char *)sql_string,
-            "host = %s user = %s",
-            pg_server_ipaddr ? pg_server_ipaddr : "localhost", user_name);
+            "host = %s user = %s password = %s",
+            pg_server_ipaddr ? pg_server_ipaddr : "localhost", user_name, passwd);
 
     PGconn *conn = PQconnectdb(sql_string);
 
-    if (PQstatus(conn) == CONNECTION_OK)
-    {
-
-        return conn;
-    }
+    if (PQstatus(conn) == CONNECTION_OK)  return conn;
     return NULL;
 }
 
-int postgresql_create_new_user(const char *server_ip_addr, const char *user_name)
+int  postgresql_create_new_user(const char *server_ip_addr, const char *user_name)
 {
-
     PGresult *sql_query_result;
-    unsigned char sql_string[128];
+    char sql_string[128];
 
-    // Connect to the database server
-    PGconn *conn = postgres_get_user_connection(server_ip_addr, "postgres");
+    PGconn *conn = postgres_get_user_connection(server_ip_addr, "postgres", "postgres");
 
-    if (!conn)
-    {
+    if (!conn) {
+
         if (log) {
-        cprintf("DBServer : %s : Connection Failed\n",
+
+        printf("DBServer : %s : Connection Failed\n",
                server_ip_addr ? server_ip_addr : "localhost");
         }
         return PGSQL_FAILED;
-    }
-
-    if (log) {
-        cprintf("DBServer : %s : Connection Successful\n",
-           server_ip_addr ? server_ip_addr : "localhost");
     }
 
     /* Check if the user already exist */
@@ -56,8 +44,8 @@ int postgresql_create_new_user(const char *server_ip_addr, const char *user_name
     sql_query_result = PQexec(conn, sql_string);
 
     // Count the number of result, it must be 0 if not exist, else 1
-    if (PQntuples(sql_query_result) == 1)
-    {
+    if (PQntuples(sql_query_result) == 1) {
+
         PQclear(sql_query_result);
         PQfinish(conn);
         return PGSQL_NOOP;
@@ -74,17 +62,18 @@ int postgresql_create_new_user(const char *server_ip_addr, const char *user_name
     if (PQresultStatus(sql_query_result) != PGRES_COMMAND_OK)
     {
         if (log) {
-        cprintf("DBServer : %s : Failed to create user %s, error code = %d\n",
+        printf("DBServer : %s : Failed to create user %s, error code = %d\n",
                server_ip_addr ? server_ip_addr : "localhost",
                user_name, PQresultStatus(sql_query_result));
         }
+        printf("Detailed error: %s\n", PQresultErrorMessage(sql_query_result));
         PQclear(sql_query_result);
         PQfinish(conn);
         return PGSQL_FAILED;
     }
 
     if (log) {
-        cprintf("DBServer : %s : User %s Created Successfully with password %s\n",
+        printf("DBServer : %s : User %s Created Successfully with password %s\n",
            server_ip_addr ? server_ip_addr : "localhost",
            user_name, user_name);
     }
@@ -93,17 +82,16 @@ int postgresql_create_new_user(const char *server_ip_addr, const char *user_name
 
 int postgresql_create_new_database(const char *server_ip_addr, const char *db_name)
 {
-
     PGresult *sql_query_result;
-    unsigned char sql_string[128];
+    char sql_string[128];
 
-    // Connect to the database server
-    PGconn *conn = postgres_get_user_connection(server_ip_addr, "postgres");
+    // Connect to the database server as a super user
+    PGconn *conn = postgres_get_user_connection(server_ip_addr, "postgres", "postgres");
 
     if (!conn)
     {
         if (log) {
-            cprintf("DBServer : %s : Connection Failed\n",
+            printf("DBServer : %s : Connection Failed\n",
                server_ip_addr ? server_ip_addr : "localhost");
         }
         return PGSQL_FAILED;
@@ -121,17 +109,13 @@ int postgresql_create_new_database(const char *server_ip_addr, const char *db_na
         return PGSQL_NOOP;
     }
 
-    // SQL command to create the new database
     sprintf((char *)sql_string, "create database %s", db_name);
-
-    // Execute the SQL command to create the new user
     sql_query_result = PQexec(conn, sql_string);
 
-    // Check if the command was successful
     if (PQresultStatus(sql_query_result) != PGRES_COMMAND_OK)
     {
         if (log) {
-            cprintf("Failed to create database %s, error code = %d\n",
+            printf("Failed to create database %s, error code = %d\n",
                db_name, PQresultStatus(sql_query_result));
         }
         PQclear(sql_query_result);
@@ -139,9 +123,6 @@ int postgresql_create_new_database(const char *server_ip_addr, const char *db_na
         return PGSQL_FAILED;
     }
 
-    if (log) {
-        cprintf("Database %s Created Successfully\n", db_name);
-    }
     PQclear(sql_query_result);
     PQfinish(conn);
     return PGSQL_SUCCESS;
@@ -151,7 +132,7 @@ int postgresql_database_assign_user(PGconn *conn, const char *user_name, const c
 {
 
     PGresult *sql_query_result;
-    unsigned char sql_string[128];
+    char sql_string[128];
 
     // GRANT ALL PRIVILEGES ON DATABASE yourdbname TO youruser;
     sprintf(sql_string, "grant all privileges on database %s to %s", db_name, user_name);
@@ -163,6 +144,9 @@ int postgresql_database_assign_user(PGconn *conn, const char *user_name, const c
         return PGSQL_SUCCESS;
     }
 
+    printf ("Error : Granting all privileges on database %s to %s Failed, error_code = %d\n",
+        db_name, user_name, PQresultStatus(sql_query_result));
+
     PQclear(sql_query_result);
     return PGSQL_FAILED;
 }
@@ -171,9 +155,9 @@ int postgresql_delete_user(const char *server_ip_addr, const char *user_name)
 {
 
     PGresult *sql_query_result;
-    unsigned char sql_string[128];
+    char sql_string[128];
 
-    PGconn *conn = postgres_get_user_connection(server_ip_addr, "postgres");
+    PGconn *conn = postgres_get_user_connection(server_ip_addr, "postgres", "postgres");
     assert(conn);
 
     // check if the user exist or not
@@ -198,7 +182,7 @@ int postgresql_delete_user(const char *server_ip_addr, const char *user_name)
     if (PQresultStatus(sql_query_result) != PGRES_COMMAND_OK)
     {
         if (log) {
-            cprintf("DBServer : %s : Failed to delete user %s, error code = %d\n",
+            printf("DBServer : %s : Failed to delete user %s, error code = %d\n",
                server_ip_addr ? server_ip_addr : "localhost",
                user_name, PQresultStatus(sql_query_result));
         }
@@ -216,9 +200,9 @@ int postgresql_delete_database(const char *server_ip_addr, const char *db_name)
 {
 
     PGresult *sql_query_result;
-    unsigned char sql_string[192];
+    char sql_string[192];
 
-    PGconn *conn = postgres_get_user_connection(server_ip_addr, "postgres");
+    PGconn *conn = postgres_get_user_connection(server_ip_addr, "postgres", "postgres");
     assert(conn);
 
     // check if the database exist or not
@@ -251,7 +235,7 @@ int postgresql_delete_database(const char *server_ip_addr, const char *db_name)
     if (PQresultStatus(sql_query_result) != PGRES_COMMAND_OK)
     {
         if (log) {
-            cprintf("DBServer : %s : Failed to delete database %s, error code = %d\n",
+            printf("DBServer : %s : Failed to delete database %s, error code = %d\n",
                server_ip_addr ? server_ip_addr : "localhost",
                db_name, PQresultStatus(sql_query_result));
         }
@@ -300,7 +284,7 @@ main(int argc , char **argv) {
     default: ;
     }
 #if 0
-    PGconn* conn = postgres_get_user_connection ( NULL, "postgres");
+    PGconn* conn = postgres_get_user_connection ( NULL, "postgres", "postgres");
     assert(conn);
     rc = postgresql_database_assign_user (conn, "vm1", "vm1db");
     PQfinish(conn);

@@ -12,7 +12,7 @@
 
 /* DB Management APIs*/
 PGconn*
-postgres_get_user_connection (const char *pg_server_ipaddr, const char *user_name);
+postgres_get_user_connection (const char *pg_server_ipaddr, const char *user_name, const char *passwd);
 
 int
 postgresql_create_new_user (const char *server_ip_addr, const char *user_name);
