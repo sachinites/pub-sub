@@ -3,9 +3,8 @@
 
 #include <stdint.h>
 
-#define COORD_MSGQ_NAME "/MAIN-COORD-MSGQ"
-#define COORD_IP_ADDR   "127.0.0.01"
-#define COORD_TCP_PORT      5000
+#define COORD_MSGQ_NAME     "/MAIN-COORD-MSGQ"
+#define COORD_IP_ADDR   2130706433 // 127.0.0.1
 #define COORD_UDP_PORT      5002
 
 typedef enum msg_type_ {
@@ -19,6 +18,7 @@ typedef enum msg_type_ {
 
 typedef enum sub_msg_type_ {
 
+    SUB_MSG_OK,
     /* Publisher Publishing a new msg or 
         Subscriber subscribing a new msg*/
     SUB_MSG_ADD,
@@ -38,8 +38,25 @@ typedef enum sub_msg_type_ {
     SUB_MSG_SUBCRIBER_LIST,
     /* Publisher requesting COORD to tell him when
     new Subsc Join*/
-    SUB_MSG_INFORM_NEW_SUBS
+    SUB_MSG_INFORM_NEW_SUBS,
+    /* confirm the generation of Pub/Sub IDs*/
+    SUB_MSG_ID_ALLOC_SUCCESS,
+    /* Add IPC Channel */
+    SUB_MSG_IPC_CHANNEL_ADD,
+    /* Remove IPC Channel */
+    SUB_MSG_IPC_CHANNEL_REMOVE,
+    /* ERROR */
+    SUB_MSG_ERROR
+
 } sub_msg_type_t;
+
+typedef enum error_codes_ {
+
+    /* cmsg_t->msg_code , TLV buffer will contain what TLVs are expected */
+    ERROR_TLV_MISSING
+
+} error_codes_t;
+
 
 typedef struct cmsg_ {
 
@@ -47,7 +64,11 @@ typedef struct cmsg_ {
     msg_type_t msg_type;
     sub_msg_type_t sub_msg_type;
     uint32_t msg_code;
-    uint32_t publisher_id;
+    union {
+        uint32_t publisher_id;
+        uint32_t subscriber_id;
+    } id;
+    uint16_t tlv_buffer_size;
     uint16_t msg_size;
     char msg[0];
 

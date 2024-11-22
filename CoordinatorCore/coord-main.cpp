@@ -2,12 +2,16 @@
 #include <pthread.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <unistd.h>
+#include <arpa/inet.h>
 #include "mqueue.h"
 #include "pubsub.h"
 #include "../Libs/PostgresLibpq/postgresLib.h"
 #include "../Common/comm-types.h"
 
-extern void
+extern cmsg_t *
 coordinator_process_publisher_msg (cmsg_t *msg, size_t bytes_read);
 
 extern void
@@ -128,56 +132,95 @@ coordinator_init_sql_db() {
 
  }
 
+static void 
+publisher_send_msg_feedback (int sock_fd, cmsg_t *reply_msg, struct sockaddr_in *client_addr) {
+
+    size_t msg_size_to_send = sizeof (*reply_msg) + reply_msg->msg_size;
+    int rc = sendto(sock_fd, (char *)&reply_msg, msg_size_to_send, 0,
+                    (struct sockaddr *)client_addr, sizeof(struct sockaddr));
+    if (rc < 0) {
+        printf("Coordinator : Error : Feeback Reply to Subscriber Failed\n");
+    }
+}
 
 static void 
 coordinator_recv_msg_listen() {
 
-    mqd_t mq;
     int ret;
-    struct mq_attr attr;
     fd_set readfds;
-    int nfds;
+    int sock_fd, addr_len, opt = 1;
+    sub_msg_type_t sub_msg_code;
+    cmsg_t *reply_msg = NULL;
     static char buffer[COORD_RECV_Q_MAX_MSG_SIZE];
-
-    attr.mq_flags = 0;
-    attr.mq_maxmsg = COORD_RECV_Q_MAX_MSGS;
-    attr.mq_msgsize = COORD_RECV_Q_MAX_MSG_SIZE;
-    attr.mq_curmsgs = 0;
-
-    mq = mq_open(COORD_MSGQ_NAME, O_RDONLY | O_CREAT, 0666, &attr);
-    if (mq == (mqd_t) -1) {
-        perror("mq_open");
+    struct sockaddr_in server_addr,
+                                  client_addr;
+    
+    if ((sock_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP )) == -1)
+    {
+        printf("Coordinator : Error : Listener Socket creation failed\n");
         exit(1);
     }
 
-    nfds = mq + 1;  // The nfds argument to select is the highest fd + 1
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(COORD_UDP_PORT);
+    server_addr.sin_addr.s_addr = htonl(COORD_IP_ADDR); 
+    addr_len = sizeof(struct sockaddr);
+
+    if (setsockopt(sock_fd, SOL_SOCKET,
+                   SO_REUSEADDR, (char *)&opt, sizeof(opt)) < 0)
+    {
+        printf("Coordinator : Error : SO_REUSEADDR failed\n");
+        close (sock_fd);
+        exit(1);
+    }
+
+    if (setsockopt(sock_fd, SOL_SOCKET,
+                   SO_REUSEPORT, (char *)&opt, sizeof(opt)) < 0)
+    {
+        printf("Coordinator : Error : SO_REUSEPORT failed\n");
+        close (sock_fd);
+        exit(1);
+    }
+
+    if (bind(sock_fd, (struct sockaddr *)&server_addr, sizeof(struct sockaddr)) == -1)
+    {
+        printf("Coordinator : Error : bind failed\n");
+        close (sock_fd);
+        exit(1);
+    }
+
+    printf("Coordinator : Listening for Requests. . .\n");
 
     while (1) {
 
         FD_ZERO(&readfds);
-        FD_SET(mq, &readfds); 
-        ret = select(nfds, &readfds, NULL, NULL, NULL);
-        
-        if (ret == -1) {
-            perror("select");
-            exit(1);
-        }
+        FD_SET(sock_fd, &readfds); 
+        FD_SET(STDIN_FILENO, &readfds); 
 
-        if (FD_ISSET(mq, &readfds)) {
+        select(sock_fd + 1, &readfds, NULL, NULL, NULL);
+
+        if (FD_ISSET(sock_fd, &readfds)) {
             
             ssize_t bytes_read;
-            bytes_read = mq_receive(mq, buffer, sizeof(buffer), NULL);
+            bytes_read = recvfrom(sock_fd, buffer, sizeof(buffer), 
+                                0, (struct sockaddr *)&client_addr, (socklen_t *)&addr_len);
+
             if (bytes_read == -1) {
-                exit(1);
+               continue;
             }
             
             buffer[bytes_read] = '\0';
+
             cmsg_t *msg = (cmsg_t *)buffer;
             
             switch (msg->msg_type) {
                 case PUB_TO_COORD:
                     printf("Received message from publisher\n");
-                    coordinator_process_publisher_msg (msg, bytes_read);
+                    reply_msg =  coordinator_process_publisher_msg (msg, bytes_read);
+                    if (reply_msg) {
+                        publisher_send_msg_feedback (sock_fd, reply_msg, &client_addr);
+                        free (reply_msg);
+                    }
                     break;
                 case SUBS_TO_COORD:
                     printf("Received message from subscriber\n");
@@ -188,6 +231,14 @@ coordinator_recv_msg_listen() {
                     break;
             }
         }
+        else if  (FD_ISSET(STDIN_FILENO , &readfds)) {
+
+            fgets( buffer, sizeof(buffer),  stdin);
+            if (buffer[0] == '\n') continue;
+            printf ("echo : %s", buffer);
+        }
+
+
     }
     /* Unreachable code*/
 }
@@ -195,7 +246,7 @@ coordinator_recv_msg_listen() {
 static void *
 coordinator_main_fn (void *arg) {
 
-    coordinator_init_sql_db();
+    //coordinator_init_sql_db();
     coord_init_publisher_table();
     coord_init_subscriber_table();
     coord_init_pub_sub_table() ;
