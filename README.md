@@ -4,7 +4,7 @@ A PUB-SUB library in C/C++
 Functionalities :
 ====================
 Coordinator can accept msgs from Subs via multiple IPCs : msgQ, Net Sockets ( UDP / TCP ).
-Subscribers which are in same Virtual Address Space ( Diifferent threads of same process ) must be able to commuincate via Callbacls.
+Subscribers which are in same Virtual Address Space ( Diifferent threads of same process ) must be able to commuincate via Callbacks.
 Subscribers which are on same machine must be able to communicate via shared memory Or Unix-Sockts Or msgQs
 Publishers and Subscribers can Dynamically join and leave
 Coordinator must be able recover from process restarts

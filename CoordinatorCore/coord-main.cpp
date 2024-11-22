@@ -1,6 +1,5 @@
 #include <stdint.h>
 #include <pthread.h>
-#include <unordered_map>
 #include <assert.h>
 #include <stdlib.h>
 #include "mqueue.h"
@@ -8,9 +7,12 @@
 #include "../Libs/PostgresLibpq/postgresLib.h"
 #include "../Common/comm-types.h"
 
-static std::unordered_map<uint32_t , publisher_db_entry_t *>pub_db;
-static std::unordered_map<uint32_t , subscriber_db_entry_t *>sub_db;
-static std::unordered_map<uint32_t , pub_sub_db_entry_t *>pub_sub_db;
+extern void
+coordinator_process_publisher_msg (cmsg_t *msg, size_t bytes_read);
+
+extern void
+coordinator_process_subscriber_msg (cmsg_t *msg, size_t bytes_read);
+
 PGconn* gconn;
 
 extern void 
@@ -135,7 +137,7 @@ coordinator_recv_msg_listen() {
     struct mq_attr attr;
     fd_set readfds;
     int nfds;
-    char buffer[COORD_RECV_Q_MAX_MSG_SIZE];
+    static char buffer[COORD_RECV_Q_MAX_MSG_SIZE];
 
     attr.mq_flags = 0;
     attr.mq_maxmsg = COORD_RECV_Q_MAX_MSGS;
@@ -175,9 +177,11 @@ coordinator_recv_msg_listen() {
             switch (msg->msg_type) {
                 case PUB_TO_COORD:
                     printf("Received message from publisher\n");
+                    coordinator_process_publisher_msg (msg, bytes_read);
                     break;
                 case SUBS_TO_COORD:
                     printf("Received message from subscriber\n");
+                    coordinator_process_subscriber_msg (msg, bytes_read);
                     break;
                 default:
                     printf("Received unknown message type\n");

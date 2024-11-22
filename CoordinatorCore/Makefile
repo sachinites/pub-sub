@@ -4,6 +4,8 @@ CFLAGS=-g -c
 TARGET=coordinator.exe
 
 COORDINATOR_OBJS=coord-main.o \
+										  coord_msg.o \
+										  coordDb.o \
 										  ../Libs/PostgresLibpq/postgresLib.o 
 
 #standard libs
@@ -19,6 +21,8 @@ main.o:main.cpp
 	${CC} ${CFLAGS} main.cpp -o main.o
 coord-main.o:coord-main.cpp
 	${CC} ${CFLAGS} coord-main.cpp -o coord-main.o
+coord_msg.o:coord_msg.cpp
+	${CC} ${CFLAGS} coord_msg.cpp -o coord_msg.o
 
 ../Libs/PostgresLibpq/postgresLib.o:../Libs/PostgresLibpq/postgresLib.cpp 
 	${CC} ${CFLAGS} ../Libs/PostgresLibpq/postgresLib.cpp -o ../Libs/PostgresLibpq/postgresLib.o
