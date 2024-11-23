@@ -138,17 +138,16 @@ int postgresql_database_assign_user(PGconn *conn, const char *user_name, const c
     sprintf(sql_string, "grant all privileges on database %s to %s", db_name, user_name);
     sql_query_result = PQexec(conn, sql_string);
 
-    if (PQresultStatus(sql_query_result) == PGRES_COMMAND_OK)
+    if (PQresultStatus(sql_query_result) != PGRES_COMMAND_OK)
     {
+        printf ("Error : Granting all privileges on database %s to %s Failed, error_code = %d\n",
+            db_name, user_name, PQresultStatus(sql_query_result));
         PQclear(sql_query_result);
-        return PGSQL_SUCCESS;
+        return PGSQL_FAILED;
     }
 
-    printf ("Error : Granting all privileges on database %s to %s Failed, error_code = %d\n",
-        db_name, user_name, PQresultStatus(sql_query_result));
-
     PQclear(sql_query_result);
-    return PGSQL_FAILED;
+    return PGSQL_SUCCESS;
 }
 
 int postgresql_delete_user(const char *server_ip_addr, const char *user_name)

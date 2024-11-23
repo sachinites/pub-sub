@@ -5,6 +5,7 @@
 #include "../Libs/tlv.h"
 #include "../Common/comm-types.h"
 #include "CoordDb.h"
+#include "pubsub.h"
 
 template <typename Key, typename Value>
 class CORDCRUDOperations;
@@ -68,7 +69,13 @@ coordinator_process_publisher_msg (cmsg_t *msg, size_t bytes_read) {
                 reply_msg->msg_size = TLV_OVERHEAD_SIZE;
                 return reply_msg;
             }
-            publisher_db_create (coord_generate_id() ,  pub_name);
+            publisher_db_entry_t* PubEntry = publisher_db_create (coord_generate_id() ,  pub_name);
+            reply_msg = (cmsg_t *)calloc (1, sizeof (*reply_msg));
+            reply_msg->msg_id = coord_generate_id();
+            reply_msg->msg_type = COORD_TO_PUB;
+            reply_msg->sub_msg_type = SUB_MSG_ID_ALLOC_SUCCESS;
+            reply_msg->id.publisher_id = PubEntry->publisher_id;
+            return reply_msg;
         }
         break;
         case SUB_MSG_UNREGISTER:
@@ -91,8 +98,10 @@ coordinator_process_publisher_msg (cmsg_t *msg, size_t bytes_read) {
     return NULL;
 }
 
-void
+cmsg_t *
 coordinator_process_subscriber_msg (cmsg_t *msg, size_t bytes_read) {
+
+    cmsg_t *reply_msg;
 
     assert (msg->msg_type == SUBS_TO_COORD);
 
@@ -124,9 +133,25 @@ coordinator_process_subscriber_msg (cmsg_t *msg, size_t bytes_read) {
 
             if (!sub_name) {
                 printf ("Coordinator : Error : Subscriber Registration : Subscriber Name TLV Missing\n");
-                return;
+                reply_msg = (cmsg_t *)calloc (1, sizeof (*reply_msg) + TLV_OVERHEAD_SIZE);
+                reply_msg->msg_id = coord_generate_id();
+                reply_msg->msg_type = COORD_TO_SUBS;
+                reply_msg->sub_msg_type = SUB_MSG_ERROR;
+                reply_msg->msg_code =  ERROR_TLV_MISSING;
+                reply_msg->id.publisher_id = 0;
+                reply_msg->tlv_buffer_size = TLV_OVERHEAD_SIZE;
+                char *tlv_buffer = reply_msg->msg;
+                tlv_buffer_insert_tlv (tlv_buffer, TLV_CODE_NAME, 0, NULL);
+                reply_msg->msg_size = TLV_OVERHEAD_SIZE;
+                return reply_msg;
             }
-            subscriber_db_create (coord_generate_id() ,  sub_name);
+            subscriber_db_entry_t *SubEntry =  subscriber_db_create (coord_generate_id() ,  sub_name);
+            reply_msg = (cmsg_t *)calloc (1, sizeof (*reply_msg));
+            reply_msg->msg_id = coord_generate_id();
+            reply_msg->msg_type = COORD_TO_SUBS;
+            reply_msg->sub_msg_type = SUB_MSG_ID_ALLOC_SUCCESS;
+            reply_msg->id.publisher_id = SubEntry->subscriber_id;
+            return reply_msg;
         }
         break;
         case SUB_MSG_UNREGISTER:
@@ -145,5 +170,6 @@ coordinator_process_subscriber_msg (cmsg_t *msg, size_t bytes_read) {
         break;
         default:    ;
     }
+    return NULL;
 }
 

@@ -26,6 +26,7 @@ coord_msg.o:coord_msg.cpp
 
 ../Libs/PostgresLibpq/postgresLib.o:../Libs/PostgresLibpq/postgresLib.cpp 
 	${CC} ${CFLAGS} ../Libs/PostgresLibpq/postgresLib.cpp -o ../Libs/PostgresLibpq/postgresLib.o
+	
 clean:
 	rm -rf *.o 
 	rm -rf ../Libs/PostgresLibpq/*.o

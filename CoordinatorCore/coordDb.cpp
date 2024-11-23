@@ -116,8 +116,8 @@ publisher_publish_msg (uint32_t pub_id,
         /* Update PUB-DB table with new publish msg ID*/
         char sql_query[256];
         snprintf (sql_query, sizeof(sql_query), 
-                  "UPDATE PUB-DB SET PUBLISHED-MSG-IDS[%d] = %u WHERE PUB-ID = %u;",
-                  i, published_msg_id, pub_id);
+                  "UPDATE %s.%s SET PUBLISHED_MSG_IDS[%d] = %u WHERE PUBID = %u;",
+                    COORD_SCHEMA_NAME, PUB_TABLE_NAME, i, published_msg_id, pub_id);
         PGresult *res = PQexec(gconn, sql_query);
         if (PQresultStatus(res) != PGRES_COMMAND_OK) {
             printf("Coordinator : Error: Failed to update PUB-DB table with new published msg ID\n");
@@ -153,7 +153,8 @@ publisher_unpublish_msg (uint32_t pub_id,
 
     char sql_query[256];
     snprintf (sql_query, sizeof(sql_query), 
-              "UPDATE PUB-DB SET PUBLISHED-MSG-IDS[%d] = %u WHERE PUB-ID = %u;",
+              "UPDATE %s.%s SET PUBLISHED_MSG_IDS[%d] = %u WHERE PUBID = %u;",
+                COORD_SCHEMA_NAME, PUB_TABLE_NAME,
               i, 0, pub_id);
 
     PGresult *res = PQexec(gconn, sql_query);
@@ -185,16 +186,17 @@ publisher_db_create (uint32_t pub_id,
     /* Insert entry into PUB-DB SQL Table */
     char sql_query[256];
     snprintf (sql_query, sizeof(sql_query), 
-                  "INSERT INTO PUB-DB (PUB-NAME, PUB-ID, NUM-MSG-PUBLISHED, PUBLISHED-MSG-IDS) "
-                  "VALUES ('%s', %u, %u, %u);",
-                  PubEntry->pub_name, PubEntry->publisher_id, 0, 0);
+                  "INSERT INTO %s.%s (PUBNAME, PUBID, NUM_MSG_PUBLISHED, PUBLISHED_MSG_IDS) "
+                  "VALUES ('%s', %u, %u, ARRAY[0]);",
+                    COORD_SCHEMA_NAME, PUB_TABLE_NAME,
+                  PubEntry->pub_name, PubEntry->publisher_id, 0);
 
     PGresult *res = PQexec(gconn, sql_query);
     if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-        printf("Coordinator : Error: Failed to insert Publisher %s into PUB-DB table\n", PubEntry->pub_name);
+        printf("Coordinator : Error: Failed to insert Publisher %s into PUB-DB table, error-code = %d, %s\n", 
+        PubEntry->pub_name, PQresultStatus(res), PQerrorMessage(gconn));
     }
     PQclear(res);
-    PQfinish(gconn);        
     return PubEntry;
 }
 
@@ -212,7 +214,8 @@ publisher_db_delete (uint32_t pub_id) {
     /* Delete entry from PUB-DB SQL Table */
     char sql_query[256];
     snprintf (sql_query, sizeof(sql_query), 
-                  "DELETE FROM PUB-DB WHERE PUB-ID = %u;",
+                  "DELETE FROM %s.%s WHERE PUBID = %u;",
+                    COORD_SCHEMA_NAME, PUB_TABLE_NAME,
                   pub_id);
 
     PGresult *res = PQexec(gconn, sql_query);
@@ -220,7 +223,6 @@ publisher_db_delete (uint32_t pub_id) {
         printf("Coordinator : Error: Failed to delete Publisher %u from PUB-DB table\n", pub_id);
     }
     PQclear(res);
-    PQfinish(gconn);        
 }
 
   
@@ -244,16 +246,16 @@ subscriber_db_create (uint32_t sub_id,
     /* Insert entry into SUB-DB SQL Table */
     char sql_query[256];
     snprintf (sql_query, sizeof(sql_query), 
-                  "INSERT INTO SUB-DB (SUB-NAME, SUB-ID, NUM-MSG-RECEIVED, SUBSCRIBED-MSG-IDS) "
-                  "VALUES ('%s', %u, %u, %u);",
-                  SubEntry->sub_name, SubEntry->subscriber_id, 0, 0);
+                  "INSERT INTO %s.%s (SUBNAME, SUBID, NUM_MSG_RECEIVED, SUBSCRIBED_MSG_IDS) "
+                  "VALUES ('%s', %u, %u, ARRAY[0]);",
+                    COORD_SCHEMA_NAME, SUB_TABLE_NAME,
+                  SubEntry->sub_name, SubEntry->subscriber_id, 0);
 
     PGresult *res = PQexec(gconn, sql_query);
     if (PQresultStatus(res) != PGRES_COMMAND_OK) {
         printf("Coordinator : Error: Failed to insert Subscriber %s into SUB-DB table\n", SubEntry->sub_name);
     }
     PQclear(res);
-    PQfinish(gconn);
     return SubEntry;
 }
 
@@ -271,7 +273,8 @@ subscriber_db_delete (uint32_t sub_id) {
     /* Delete entry from SUB-DB SQL Table */
     char sql_query[256];
     snprintf (sql_query, sizeof(sql_query), 
-                  "DELETE FROM SUB-DB WHERE SUB-ID = %u;",
+                  "DELETE FROM %s.%s WHERE SUBID = %u;",
+                    COORD_SCHEMA_NAME, SUB_TABLE_NAME,
                   sub_id);
 
     PGresult *res = PQexec(gconn, sql_query);
@@ -279,7 +282,6 @@ subscriber_db_delete (uint32_t sub_id) {
         printf("Coordinator : Error: Failed to delete Subscriber %u from SUB-DB table\n", sub_id);
     }
     PQclear(res);
-    PQfinish(gconn);        
 }
 
 bool 
@@ -304,14 +306,14 @@ subscriber_subscribe_msg (uint32_t sub_id,
         /* Update SUB-DB table with new subscribed msg ID*/
         char sql_query[256];
         snprintf (sql_query, sizeof(sql_query), 
-                  "UPDATE SUB-DB SET SUBSCRIBED-MSG-IDS[%d] = %u WHERE SUB-ID = %u;",
+                  "UPDATE %s.%s SET SUBSCRIBED_MSG_IDS[%d] = %u WHERE SUBID = %u;",
+                    COORD_SCHEMA_NAME, SUB_TABLE_NAME,
                   i, msg_id, sub_id);
         PGresult *res = PQexec(gconn, sql_query);
         if (PQresultStatus(res) != PGRES_COMMAND_OK) {
             printf("Coordinator : Error: Failed to update SUB-DB table with new subscribed msg ID\n");
         }
         PQclear(res);
-        PQfinish(gconn);    
         return true;
     }
     return false;
@@ -340,7 +342,8 @@ subscriber_unsubscribe_msg (uint32_t sub_id,
 
     char sql_query[256];
     snprintf (sql_query, sizeof(sql_query), 
-              "UPDATE SUB-DB SET SUBSCRIBED-MSG-IDS[%d] = %u WHERE SUB-ID = %u;",
+              "UPDATE %s.%s SET SUBSCRIBED_MSG_IDS[%d] = %u WHERE SUBID = %u;",
+                COORD_SCHEMA_NAME, SUB_TABLE_NAME,
               i, 0, sub_id);
 
     PGresult *res = PQexec(gconn, sql_query);
@@ -350,7 +353,6 @@ subscriber_unsubscribe_msg (uint32_t sub_id,
     }
 
     PQclear(res);
-    PQfinish(gconn);
     return true;
 }
 

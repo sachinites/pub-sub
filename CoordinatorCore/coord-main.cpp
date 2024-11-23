@@ -14,7 +14,7 @@
 extern cmsg_t *
 coordinator_process_publisher_msg (cmsg_t *msg, size_t bytes_read);
 
-extern void
+extern cmsg_t *
 coordinator_process_subscriber_msg (cmsg_t *msg, size_t bytes_read);
 
 PGconn* gconn;
@@ -34,21 +34,21 @@ coord_init_publisher_table() {
         List of Msg IDs Published
     */
 
-    const char *sql_query = "CREATE TABLE PUB-DB ("
-                            "PUB-NAME TEXT PRIMARY KEY NOT NULL,"
-                            "PUB-ID INT PRIMARY KEY NOT NULL,"
-                            "NUM-MSG-PUBLISHED INT NOT NULL,"
-                            "PUBLISHED-MSG-IDS INT[] NOT NULL);";
+   char sql_query[256];
+
+   snprintf (sql_query, sizeof (sql_query), "CREATE TABLE %s.%s ("
+                            "PUBNAME TEXT NOT NULL,"
+                            "PUBID INT PRIMARY KEY NOT NULL,"
+                            "NUM_MSG_PUBLISHED INT NOT NULL,"
+                            "PUBLISHED_MSG_IDS INT[] NOT NULL);", 
+                            COORD_SCHEMA_NAME, PUB_TABLE_NAME);
 
     PGresult *res = PQexec(gconn, sql_query);
     if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-        printf("Error: Failed to create PUB-DB table\n");
-        PQclear(res);
-        PQfinish(gconn);
-        exit(1);
+        printf("Warning: Failed to create Publisher table, error code = %d, %s\n",           
+            PQresultStatus(res), PQerrorMessage(gconn));
     }
-
-    PQclear(res);
+   PQclear(res);
 }
 
 static void 
@@ -63,20 +63,19 @@ coord_init_subscriber_table() {
             List of Msg IDs Subscribed
     */
 
-    const char *sql_query = "CREATE TABLE SUB-DB ("
-                            "SUB-NAME TEXT PRIMARY KEY NOT NULL,"
-                            "SUB-ID INT PRIMARY KEY NOT NULL,"
-                            "NUM-MSG-RECEIVED INT NOT NULL,"
-                            "SUBSCRIBED-MSG-IDS INT[] NOT NULL);";
+   char sql_query[256];
+    snprintf (sql_query, sizeof (sql_query), "CREATE TABLE %s.%s ("
+                            "SUBNAME TEXT NOT NULL,"
+                            "SUBID INT PRIMARY KEY NOT NULL,"
+                            "NUM_MSG_RECEIVED INT NOT NULL,"
+                            "SUBSCRIBED_MSG_IDS INT[] NOT NULL);", 
+                            COORD_SCHEMA_NAME, SUB_TABLE_NAME);
 
     PGresult *res = PQexec(gconn, sql_query);
     if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-        printf("Error: Failed to create SUB-DB table\n");
-        PQclear(res);
-        PQfinish(gconn);
-        exit(1);
+        printf("Warning: Failed to create Subscriber table, error code = %d, %s\n",           
+            PQresultStatus(res), PQerrorMessage(gconn));
     }
-
     PQclear(res);
 }
 
@@ -91,16 +90,16 @@ coord_init_pub_sub_table() {
             List of Subscriber IDs
     */
 
-    const char *sql_query = "CREATE TABLE PUB-SUB ("
-                            "PUB-MSG-CODE INT PRIMARY KEY NOT NULL,"
-                            "SUBSCRIBER-IDS INT[] NOT NULL);";
+   char sql_query[256];
+    snprintf (sql_query, sizeof (sql_query), "CREATE TABLE %s.%s ("
+                            "PUB_MSG_CODE INT PRIMARY KEY NOT NULL,"
+                            "SUBSCRIBER_IDS INT[] NOT NULL);",
+                            COORD_SCHEMA_NAME, PUB_SUB_TABLE_NAME);
     
     PGresult *res = PQexec(gconn, sql_query);
     if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-        printf("Error: Failed to create PUB-SUB table\n");
-        PQclear(res);
-        PQfinish(gconn);
-        exit(1);
+        printf("Warning: Failed to create Pub-Sub table, error code = %d, %s\n",           
+            PQresultStatus(res), PQerrorMessage(gconn));
     }
 
     PQclear(res);
@@ -158,6 +157,17 @@ coordinator_init_sql_db() {
     /* Assigned this new DB 'coord_db_name' to new user 'Coordinator' with all privileges*/
     assert (postgresql_database_assign_user (conn, user_name, coord_db_name) != PGSQL_FAILED);
 
+    /* create Schema for the new user */
+    sprintf(sql_query, "create schema %s authorization %s", COORD_SCHEMA_NAME, user_name);
+    sql_query_result = PQexec(conn, sql_query);
+
+    if (PQresultStatus(sql_query_result) != PGRES_COMMAND_OK)
+    {
+        printf ("Warning : Creating schema authorization %s Failed, error_code = %d, %s\n",
+            user_name, PQresultStatus(sql_query_result), PQerrorMessage(conn));
+        PQclear(sql_query_result);
+    }
+
     /* Get rid of the superuser 'postgres' connection, re-establish the new connection for new user 
         with db-name also included as a paramater*/
     PQfinish(conn);
@@ -178,10 +188,10 @@ coordinator_init_sql_db() {
  }
 
 static void 
-publisher_send_msg_feedback (int sock_fd, cmsg_t *reply_msg, struct sockaddr_in *client_addr) {
+coordinator_reply (int sock_fd, cmsg_t *reply_msg, struct sockaddr_in *client_addr) {
 
     size_t msg_size_to_send = sizeof (*reply_msg) + reply_msg->msg_size;
-    int rc = sendto(sock_fd, (char *)&reply_msg, msg_size_to_send, 0,
+    int rc = sendto(sock_fd, (char *)reply_msg, msg_size_to_send, 0,
                     (struct sockaddr *)client_addr, sizeof(struct sockaddr));
     if (rc < 0) {
         printf("Coordinator : Error : Feeback Reply to Subscriber Failed\n");
@@ -236,54 +246,64 @@ coordinator_recv_msg_listen() {
 
     printf("Coordinator : Listening for Requests. . .\n");
 
-    while (1) {
+    while (1)
+    {
 
         FD_ZERO(&readfds);
-        FD_SET(sock_fd, &readfds); 
-        FD_SET(STDIN_FILENO, &readfds); 
+        FD_SET(sock_fd, &readfds);
+        FD_SET(STDIN_FILENO, &readfds);
 
         select(sock_fd + 1, &readfds, NULL, NULL, NULL);
 
-        if (FD_ISSET(sock_fd, &readfds)) {
-            
+        if (FD_ISSET(sock_fd, &readfds))
+        {
             ssize_t bytes_read;
-            bytes_read = recvfrom(sock_fd, buffer, sizeof(buffer), 
-                                0, (struct sockaddr *)&client_addr, (socklen_t *)&addr_len);
 
-            if (bytes_read == -1) {
-               continue;
-            }
-            
-            buffer[bytes_read] = '\0';
+            while (1)
+            {
+                bytes_read = recvfrom(sock_fd, buffer, sizeof(buffer),
+                                      0, (struct sockaddr *)&client_addr, (socklen_t *)&addr_len);
 
-            cmsg_t *msg = (cmsg_t *)buffer;
-            
-            switch (msg->msg_type) {
+                if (bytes_read <= 0) break;
+
+                buffer[bytes_read] = '\0';
+
+                cmsg_t *msg = (cmsg_t *)buffer;
+
+                switch (msg->msg_type)
+                {
                 case PUB_TO_COORD:
                     printf("Received message from publisher\n");
-                    reply_msg =  coordinator_process_publisher_msg (msg, bytes_read);
-                    if (reply_msg) {
-                        publisher_send_msg_feedback (sock_fd, reply_msg, &client_addr);
-                        free (reply_msg);
+                    reply_msg = coordinator_process_publisher_msg(msg, bytes_read);
+                    if (reply_msg)
+                    {
+                        coordinator_reply(sock_fd, reply_msg, &client_addr);
+                        free(reply_msg);
                     }
                     break;
                 case SUBS_TO_COORD:
                     printf("Received message from subscriber\n");
-                    coordinator_process_subscriber_msg (msg, bytes_read);
+                    reply_msg = coordinator_process_subscriber_msg(msg, bytes_read);
+                    if (reply_msg)
+                    {
+                        coordinator_reply(sock_fd, reply_msg, &client_addr);
+                        free(reply_msg);
+                    }
                     break;
                 default:
                     printf("Received unknown message type\n");
                     break;
+                }
             }
         }
-        else if  (FD_ISSET(STDIN_FILENO , &readfds)) {
+        else if (FD_ISSET(STDIN_FILENO, &readfds))
+        {
 
-            fgets( buffer, sizeof(buffer),  stdin);
-            if (buffer[0] == '\n') continue;
-            printf ("echo : %s", buffer);
+            fgets(buffer, sizeof(buffer), stdin);
+            if (buffer[0] == '\n')
+                continue;
+            printf("echo : %s", buffer);
         }
-
-
     }
     /* Unreachable code*/
 }
@@ -291,7 +311,7 @@ coordinator_recv_msg_listen() {
 static void *
 coordinator_main_fn (void *arg) {
 
-    //coordinator_init_sql_db();
+    coordinator_init_sql_db();
     coord_init_publisher_table();
     coord_init_subscriber_table();
     coord_init_pub_sub_table() ;
