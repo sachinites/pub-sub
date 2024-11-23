@@ -1,3 +1,6 @@
+#ifndef __TLV__
+#define __TLV__
+
 #include <stdint.h>
 #include <memory.h>
 
@@ -60,3 +63,5 @@ tlv_buffer_get_particular_tlv(char  *tlv_buff, /*Input TLV Buffer*/
 
     return NULL;
 }
+
+#endif 

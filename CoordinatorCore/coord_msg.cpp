@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <cstdio>
+#include <stdarg.h>
 #include "../Libs/tlv.h"
 #include "../Common/comm-types.h"
 #include "CoordDb.h"
@@ -16,7 +17,6 @@ coord_generate_id () {
     static uint32_t id = 0;
     return ++id;
 }
-
 
 cmsg_t *
 coordinator_process_publisher_msg (cmsg_t *msg, size_t bytes_read) {
@@ -57,23 +57,17 @@ coordinator_process_publisher_msg (cmsg_t *msg, size_t bytes_read) {
 
             if (!pub_name) {
                 printf ("Coordinator : Error : Publisher Registration : Publisher Name TLV Missing\n");
-                reply_msg = (cmsg_t *)calloc (1, sizeof (*reply_msg) + TLV_OVERHEAD_SIZE);
-                reply_msg->msg_id = coord_generate_id();
-                reply_msg->msg_type = COORD_TO_PUB;
-                reply_msg->sub_msg_type = SUB_MSG_ERROR;
-                reply_msg->msg_code =  ERROR_TLV_MISSING;
-                reply_msg->id.publisher_id = 0;
-                reply_msg->tlv_buffer_size = TLV_OVERHEAD_SIZE;
-                char *tlv_buffer = reply_msg->msg;
-                tlv_buffer_insert_tlv (tlv_buffer, TLV_CODE_NAME, 0, NULL);
-                reply_msg->msg_size = TLV_OVERHEAD_SIZE;
-                return reply_msg;
+                return cord_prepare_msg (COORD_TO_PUB, 
+                    SUB_MSG_ERROR, 
+                    ERROR_TLV_MISSING, 1, false, TLV_CODE_NAME);
             }
+
             publisher_db_entry_t* PubEntry = publisher_db_create (coord_generate_id() ,  pub_name);
-            reply_msg = (cmsg_t *)calloc (1, sizeof (*reply_msg));
-            reply_msg->msg_id = coord_generate_id();
-            reply_msg->msg_type = COORD_TO_PUB;
-            reply_msg->sub_msg_type = SUB_MSG_ID_ALLOC_SUCCESS;
+
+            cmsg_t *reply_msg =  cord_prepare_msg (
+                        COORD_TO_PUB, 
+                        SUB_MSG_ID_ALLOC_SUCCESS, 
+                        0, false, 0);
             reply_msg->id.publisher_id = PubEntry->publisher_id;
             return reply_msg;
         }
@@ -105,11 +99,13 @@ coordinator_process_subscriber_msg (cmsg_t *msg, size_t bytes_read) {
 
     assert (msg->msg_type == SUBS_TO_COORD);
 
+    msg->msg_id = coord_generate_id();
+
     switch (msg->sub_msg_type) {
 
         case SUB_MSG_ADD:
         {
-            bool rc = subscriber_subscribe_msg (msg->id.subscriber_id, msg->msg_id);
+            bool rc = subscriber_subscribe_msg (msg->id.subscriber_id, msg->msg_code);
             if (!rc) {
                 printf ("Coordinator : Error : New Msg Subscribing Failed by Subscriber ID %u\n", msg->id.subscriber_id);
             }
@@ -117,7 +113,7 @@ coordinator_process_subscriber_msg (cmsg_t *msg, size_t bytes_read) {
         break;
         case SUB_MSG_DELETE:
         {
-            bool rc = subscriber_unsubscribe_msg (msg->id.subscriber_id, msg->msg_id);
+            bool rc = subscriber_unsubscribe_msg (msg->id.subscriber_id, msg->msg_code);
         }
         break;
         case SUB_MSG_REGISTER:
@@ -133,24 +129,16 @@ coordinator_process_subscriber_msg (cmsg_t *msg, size_t bytes_read) {
 
             if (!sub_name) {
                 printf ("Coordinator : Error : Subscriber Registration : Subscriber Name TLV Missing\n");
-                reply_msg = (cmsg_t *)calloc (1, sizeof (*reply_msg) + TLV_OVERHEAD_SIZE);
-                reply_msg->msg_id = coord_generate_id();
-                reply_msg->msg_type = COORD_TO_SUBS;
-                reply_msg->sub_msg_type = SUB_MSG_ERROR;
-                reply_msg->msg_code =  ERROR_TLV_MISSING;
-                reply_msg->id.publisher_id = 0;
-                reply_msg->tlv_buffer_size = TLV_OVERHEAD_SIZE;
-                char *tlv_buffer = reply_msg->msg;
-                tlv_buffer_insert_tlv (tlv_buffer, TLV_CODE_NAME, 0, NULL);
-                reply_msg->msg_size = TLV_OVERHEAD_SIZE;
-                return reply_msg;
+                return cord_prepare_msg (COORD_TO_SUBS, 
+                    SUB_MSG_ERROR, 
+                    ERROR_TLV_MISSING, 1, false, TLV_CODE_NAME);
             }
             subscriber_db_entry_t *SubEntry =  subscriber_db_create (coord_generate_id() ,  sub_name);
-            reply_msg = (cmsg_t *)calloc (1, sizeof (*reply_msg));
-            reply_msg->msg_id = coord_generate_id();
-            reply_msg->msg_type = COORD_TO_SUBS;
-            reply_msg->sub_msg_type = SUB_MSG_ID_ALLOC_SUCCESS;
-            reply_msg->id.publisher_id = SubEntry->subscriber_id;
+            cmsg_t *reply_msg =  cord_prepare_msg (
+                        COORD_TO_SUBS, 
+                        SUB_MSG_ID_ALLOC_SUCCESS, 
+                        0, false, 0);
+            reply_msg->id.subscriber_id = SubEntry->subscriber_id;
             return reply_msg;
         }
         break;

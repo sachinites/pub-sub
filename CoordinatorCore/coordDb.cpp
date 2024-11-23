@@ -3,6 +3,8 @@
 #include <iostream>
 #include <stdexcept>
 #include <string.h>
+#include <assert.h>
+#include <unistd.h>
 #include "pubsub.h"
 #include "../Libs/PostgresLibpq/postgresLib.h"
 
@@ -178,6 +180,8 @@ publisher_db_create (uint32_t pub_id,
         return PubEntry;
 
     PubEntry = new publisher_db_entry_t;
+    memset (PubEntry, 0, sizeof(*PubEntry));
+
     strncpy(PubEntry->pub_name, pub_name, sizeof(PubEntry->pub_name));
     PubEntry->publisher_id = pub_id;
     CORDCRUDOperations<uint32_t, publisher_db_entry_t>::
@@ -238,6 +242,8 @@ subscriber_db_create (uint32_t sub_id,
         return SubEntry;
 
     SubEntry = new subscriber_db_entry_t;
+    memset (SubEntry, 0, sizeof(*SubEntry));
+
     strncpy(SubEntry->sub_name, sub_name, sizeof(SubEntry->sub_name));
     SubEntry->subscriber_id = sub_id;
     CORDCRUDOperations<uint32_t, subscriber_db_entry_t>::
@@ -291,16 +297,23 @@ subscriber_subscribe_msg (uint32_t sub_id,
     auto SubEntry = CORDCRUDOperations<uint32_t, subscriber_db_entry_t>::
         read(sub_db, sub_id);
 
-    if (!SubEntry) return false;
+    if (!SubEntry) {
+        printf("Coordinator : Error: Subscriber ID %u not found\n", sub_id);
+        return false;
+    }
 
     int i;
 
     for (i = 0; i < MAX_SUBSCRIBED_MSG; i++) {
-        if (SubEntry->subscriber_msg_ids[i] == msg_id) return false;
+        if (SubEntry->subscriber_msg_ids[i] == msg_id) {
+            printf("Coordinator : Error: Subscriber [%s,%u] already subscribed to msg %u\n", SubEntry->sub_name, SubEntry->subscriber_id, msg_id);
+        }
     }
 
     for (i = 0; i < MAX_SUBSCRIBED_MSG; i++) {
+
         if (SubEntry->subscriber_msg_ids[i]) continue;
+
         SubEntry->subscriber_msg_ids[i] = msg_id;
 
         /* Update SUB-DB table with new subscribed msg ID*/
@@ -309,9 +322,12 @@ subscriber_subscribe_msg (uint32_t sub_id,
                   "UPDATE %s.%s SET SUBSCRIBED_MSG_IDS[%d] = %u WHERE SUBID = %u;",
                     COORD_SCHEMA_NAME, SUB_TABLE_NAME,
                   i, msg_id, sub_id);
+
         PGresult *res = PQexec(gconn, sql_query);
+
         if (PQresultStatus(res) != PGRES_COMMAND_OK) {
             printf("Coordinator : Error: Failed to update SUB-DB table with new subscribed msg ID\n");
+        
         }
         PQclear(res);
         return true;
