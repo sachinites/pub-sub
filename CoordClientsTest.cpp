@@ -140,8 +140,8 @@ main (int arhc, char **argv) {
         if (cmsg.msg_type == COORD_TO_SUBS) {
             
             subscriber_subscribe  (sock_fd, cmsg.id.subscriber_id, 100);
-            subscriber_subscribe  (sock_fd, cmsg.id.subscriber_id, 101);
-            subscriber_subscribe  (sock_fd, cmsg.id.subscriber_id, 102);
+            //subscriber_subscribe  (sock_fd, cmsg.id.subscriber_id, 101);
+            //subscriber_subscribe  (sock_fd, cmsg.id.subscriber_id, 102);
 
             cmsg_t *subscriber_ipc_msg = cord_prepare_msg (
                                                         SUBS_TO_COORD, 
@@ -154,23 +154,23 @@ main (int arhc, char **argv) {
             
             uint8_t tlv_data_len = 0;
             char *ipc_skt_tlv = tlv_buffer_get_particular_tlv (
-                                                subscriber_ipc_msg->msg,
+                                                (char *)subscriber_ipc_msg->msg,
                                                 subscriber_ipc_msg->tlv_buffer_size,
                                                 TLV_IPC_NET_UDP_SKT, &tlv_data_len);
 
-            uint32_t *ip_addr = (uint32_t *)  (ipc_skt_tlv + TLV_OVERHEAD_SIZE);
-            *ip_addr = htonl(2130706433); // 127.0.0.1
-            uint16_t *port = (uint16_t *) (ipc_skt_tlv + TLV_OVERHEAD_SIZE + 4);
+            uint32_t *ip_addr = (uint32_t *)  (ipc_skt_tlv);
+            *ip_addr = htonl(16909060);
+            uint16_t *port = (uint16_t *) (ipc_skt_tlv + 4);
             *port = htons(40000);
 
             int rc = sendto(sock_fd, (char *)subscriber_ipc_msg, 
-            sizeof(*subscriber_ipc_msg) + subscriber_ipc_msg->msg_size, 
-            0,
-            (struct sockaddr *)&server_addr, sizeof(struct sockaddr));
-            if (rc < 0)
-            {
+                                    sizeof(*subscriber_ipc_msg) + subscriber_ipc_msg->msg_size, 
+                                    0, (struct sockaddr *)&server_addr, sizeof(struct sockaddr));
+
+            if (rc < 0) {
                 printf("Client : Error : Send Failed, errno = %d\n", errno);
             }
+            
             free(subscriber_ipc_msg);
         }
     }

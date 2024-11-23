@@ -26,7 +26,7 @@
             TLV_OVERHEAD_SIZE + sizeof(char)));                        \
         length = _tlv_value_size;
 
-#define ITERATE_TLV_END(start_ptr, type, length, tlv_ptr, tlv_size)             \
+#define ITERATE_TLV_END            \
     }}
 
 
@@ -56,7 +56,8 @@ tlv_buffer_get_particular_tlv(char  *tlv_buff, /*Input TLV Buffer*/
         
         if(tlv_type != tlv_no) continue;
         *tlv_data_len = tlv_len;
-        return tlv_value;
+        return (tlv_value);
+
     }ITERATE_TLV_END(tlv_buff, tlv_type, tlv_len, tlv_value, tlv_buff_size); 
 
     *tlv_data_len = 0;

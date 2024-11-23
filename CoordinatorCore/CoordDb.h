@@ -2,6 +2,7 @@
 #include "../Common/comm-types.h"
 
 typedef struct publisher_db_entry_ publisher_db_entry_t; 
+typedef struct cmsg_ cmsg_t;
 
 /* Publisher DB operations */
 publisher_db_entry_t *
@@ -36,3 +37,7 @@ subscriber_subscribe_msg (uint32_t sub_id,
 bool 
 subscriber_unsubscribe_msg (uint32_t sub_id, 
                                                 uint32_t msg_id); 
+
+bool 
+coordinator_process_subscriber_ipc_subscription (
+        uint32_t sub_id, cmsg_t *cmsg);

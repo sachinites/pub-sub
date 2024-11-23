@@ -3,10 +3,15 @@
 #include <assert.h>
 #include <cstdio>
 #include <stdarg.h>
+#include <arpa/inet.h>
 #include "../Libs/tlv.h"
 #include "../Common/comm-types.h"
 #include "CoordDb.h"
 #include "pubsub.h"
+
+extern void 
+coordinator_accept_pubmsg_for_distribution_to_subcribers (cmsg_t *cmsg) ;
+
 
 template <typename Key, typename Value>
 class CORDCRUDOperations;
@@ -86,6 +91,11 @@ coordinator_process_publisher_msg (cmsg_t *msg, size_t bytes_read) {
         break;
         case SUB_MSG_INFORM_NEW_SUBS:
         break;
+        case SUB_MSG_DATA:
+        {
+            coordinator_accept_pubmsg_for_distribution_to_subcribers (msg);
+        }
+        break;
         default:    ;
     }
     
@@ -155,6 +165,11 @@ coordinator_process_subscriber_msg (cmsg_t *msg, size_t bytes_read) {
         case SUB_MSG_SUBCRIBER_LIST:
         break;
         case SUB_MSG_INFORM_NEW_SUBS:
+        break;
+        case SUB_MSG_IPC_CHANNEL_ADD:
+        {
+            bool rc = coordinator_process_subscriber_ipc_subscription (msg->id.subscriber_id, msg);
+        }
         break;
         default:    ;
     }

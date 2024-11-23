@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <vector>
+#include "CoordIpc.h"
 #include "Config.h"
 
 
@@ -32,6 +33,9 @@ typedef struct subscriber_db_entry_ {
 
     /*Array of Msgs subscriber is interested */
     uint32_t subscriber_msg_ids[MAX_SUBSCRIBED_MSG];
+
+    ipc_type_t ipc_type;
+    ipc_struct_t ipc_struct;
 
 } subscriber_db_entry_t ;
 

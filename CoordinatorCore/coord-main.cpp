@@ -64,14 +64,28 @@ coord_init_subscriber_table() {
     */
 
    char sql_query[256];
+
+  snprintf (sql_query, sizeof (sql_query), 
+    "CREATE TYPE %s.ipc_struct AS ("
+        "ipc_type INT,"
+        "netskt_ip_addr INT,"
+        "netskt_port INT,"
+        "netskt_transport_type INT,"
+        "msgq_name TEXT,"
+        "uxskt_name TEXT);", COORD_SCHEMA_NAME); 
+    PGresult *res = PQexec(gconn, sql_query);
+    PQclear(res);
+
     snprintf (sql_query, sizeof (sql_query), "CREATE TABLE %s.%s ("
                             "SUBNAME TEXT NOT NULL,"
                             "SUBID INT PRIMARY KEY NOT NULL,"
                             "NUM_MSG_RECEIVED INT NOT NULL,"
-                            "SUBSCRIBED_MSG_IDS INT[] NOT NULL);", 
-                            COORD_SCHEMA_NAME, SUB_TABLE_NAME);
+                            "SUBSCRIBED_MSG_IDS INT[] NOT NULL,"
+                            "IPC_DATA %s.ipc_struct);",
+                            COORD_SCHEMA_NAME, SUB_TABLE_NAME,
+                            COORD_SCHEMA_NAME);
+    res = PQexec(gconn, sql_query);
 
-    PGresult *res = PQexec(gconn, sql_query);
     if (PQresultStatus(res) != PGRES_COMMAND_OK) {
         printf("Warning: Failed to create Subscriber table, error code = %d, %s\n",           
             PQresultStatus(res), PQerrorMessage(gconn));

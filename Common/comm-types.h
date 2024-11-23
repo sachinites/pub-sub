@@ -21,7 +21,7 @@ typedef enum msg_type_ {
 
 typedef enum sub_msg_type_ {
 
-    SUB_MSG_OK,
+    SUB_MSG_DATA,
     /* Publisher Publishing a new msg or 
         Subscriber subscribing a new msg*/
     SUB_MSG_ADD,
@@ -60,6 +60,20 @@ typedef enum error_codes_ {
 
 } error_codes_t;
 
+/* Coordinator must send an ACK for this msg back to Pub*/
+#define CMSG_MSG_F_ACK_REQUIRED (1)
+ /* Coordinator Must distribute this message periodically */
+#define CMSG_MSG_F_PERIODIC_DIST  (2)
+
+
+
+typedef struct cmsg_meta_data_ {
+
+    uint8_t flags;
+    uint16_t interval_sec;
+    uint32_t pub_gen_id;
+
+} cmsg_meta_data_t;
 
 typedef struct cmsg_ {
 
@@ -71,11 +85,13 @@ typedef struct cmsg_ {
         uint32_t publisher_id;
         uint32_t subscriber_id;
     } id;
+    cmsg_meta_data_t meta_data;
     uint16_t tlv_buffer_size;
     uint16_t msg_size;
     char msg[0];
 
 } cmsg_t;
+
 
 #define TLV_CODE_NAME   1
 #define TLV_CODE_NAME_LEN   32
@@ -148,7 +164,7 @@ cord_prepare_msg (msg_type_t msg_type,
     }
 
     va_end (tlv_ids_list);
-
     return reply_msg;
 }
+
 #endif 

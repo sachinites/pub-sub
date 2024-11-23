@@ -5,8 +5,12 @@
 #include <string.h>
 #include <assert.h>
 #include <unistd.h>
+#include <arpa/inet.h>
+#include "../Libs/tlv.h"
 #include "pubsub.h"
+#include "../Common/comm-types.h"
 #include "../Libs/PostgresLibpq/postgresLib.h"
+#include "CoordIpc.h"
 
 extern PGconn* gconn;
 
@@ -372,53 +376,84 @@ subscriber_unsubscribe_msg (uint32_t sub_id,
     return true;
 }
 
+bool 
+coordinator_process_subscriber_ipc_subscription (
+        uint32_t sub_id, 
+        cmsg_t *cmsg) {
 
+    assert (cmsg->msg_type == SUBS_TO_COORD);
+    assert (cmsg->sub_msg_type == SUB_MSG_IPC_CHANNEL_ADD);
 
+    auto SubEntry = CORDCRUDOperations<uint32_t, subscriber_db_entry_t>::
+        read(sub_db, sub_id);
 
-#if 0
-
-// Main function for demonstration
-int main() {
-    // Create entries
-    auto* pubEntry = new publisher_db_entry_t{"PublisherName", 42, {1, 2, 3, 4}};
-    auto* subEntry = new subscriber_db_entry_t{"SubscriberName", 43, {1, 2, 3, 4}};
-    auto* pubSubEntry = new pub_sub_db_entry_t{4, {101, 102, 103}};
-
-    // Create or Update entries in databases
-    CORDCRUDOperations<uint32_t, publisher_db_entry_t>::create(pub_db, 1, pubEntry);
-    CORDCRUDOperations<uint32_t, subscriber_db_entry_t>::create(sub_db, 2, subEntry);
-    CORDCRUDOperations<uint32_t, pub_sub_db_entry_t>::create(pub_sub_db, 3, pubSubEntry);
-
-    // Read entries
-    auto readPubEntry = CORDCRUDOperations<uint32_t, publisher_db_entry_t>::read(pub_db, 1);
-    if (readPubEntry) {
-        std::cout << "Read publisher_db_entry_t: " << readPubEntry->pub_name << "\n";
+    if (!SubEntry) {
+        
+        printf("Coordinator : Error: Subscriber ID %u not found\n", sub_id);
+        return false;
     }
 
-    // Update entry
-    auto* updatedPubEntry = new publisher_db_entry_t{99};
-    CORDCRUDOperations<uint32_t, publisher_db_entry_t>::update(pub_db, 1, updatedPubEntry);
-
-    // Display databases
-    std::cout << "Publisher DB:\n";
-    CORDCRUDOperations<uint32_t, publisher_db_entry_t>::display(pub_db);
-
-    // Delete an entry
-    CORDCRUDOperations<uint32_t, publisher_db_entry_t>::remove(pub_db, 1);
-
-    // Display databases after deletion
-    std::cout << "Publisher DB after deletion:\n";
-    CORDCRUDOperations<uint32_t, publisher_db_entry_t>::display(pub_db);
-
-    // Clean up remaining entries
-    for (auto& entry : sub_db) {
-        delete entry.second;
-    }
-    for (auto& entry : pub_sub_db) {
-        delete entry.second;
+    if (SubEntry->ipc_type != IPC_TYPE_NONE) {
+        printf("Coordinator : Error: Subscriber [%s,%u] IPC Channel Already Exists\n", SubEntry->sub_name, SubEntry->subscriber_id);
+        return false;
     }
 
-    return 0;
+    if (cmsg->tlv_buffer_size == 0) {
+        printf("Coordinator : Error: Subscriber IPC Channel TLV Contains no IPC Data\n");
+        return false;
+    }
+
+    char *tlv_buffer = (char *)cmsg->msg;
+    size_t tlv_bufer_size = cmsg->tlv_buffer_size;
+    uint8_t tlv_data_len = 0;
+    uint8_t tlv_type;
+    char *tlv_value;
+
+    ITERATE_TLV_BEGIN(tlv_buffer, tlv_type, tlv_data_len, tlv_value, tlv_bufer_size) {
+
+        switch (tlv_type) {
+
+            case TLV_IPC_NET_UDP_SKT:
+            {
+                uint32_t ip_addr = *(uint32_t *)  (tlv_value);
+                ip_addr = htonl(ip_addr);
+                uint16_t port = *(uint16_t *) (tlv_value + 4);
+                port = htons(port);
+                printf("Coordinator : Subscriber [%s,%u] IPC Channel Add : IP Address %u, Port %u\n", 
+                    SubEntry->sub_name, SubEntry->subscriber_id, ip_addr, port);
+                SubEntry->ipc_type = IPC_TYPE_NETSKT;
+                SubEntry->ipc_struct.netskt.ip_addr = ip_addr;
+                SubEntry->ipc_struct.netskt.port = port;
+                SubEntry->ipc_struct.netskt.transport_type = IPPROTO_UDP;
+
+                /* Now update SUB-DB*/
+                char sql_query[256];
+                snprintf (sql_query, sizeof(sql_query), 
+                          "UPDATE %s.%s SET IPC_DATA = ROW(%u, %u, %u, %u, %s, %s)::%s.ipc_struct"
+                          " WHERE SUBID = %u;",
+                            COORD_SCHEMA_NAME, SUB_TABLE_NAME,
+                          SubEntry->ipc_type, SubEntry->ipc_struct.netskt.ip_addr, 
+                          SubEntry->ipc_struct.netskt.port, SubEntry->ipc_struct.netskt.transport_type,
+                          "''", "''", COORD_SCHEMA_NAME, sub_id);
+                
+                printf ("Executing SQL Query : %s\n", sql_query);
+
+                PGresult *res = PQexec(gconn, sql_query);
+                if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+                    printf("Coordinator : Error: Failed to update SUB-DB table with new IPC Channel\n");
+                    PQclear(res);
+                    return false;
+                }
+                PQclear(res);
+                return true;
+            }
+            break;
+            default:
+                printf("Coordinator : Error: Unknown TLV Type %u in Subscriber IPC Channel TLV\n", tlv_type);
+                return false;
+        }
+
+    } ITERATE_TLV_END;
+
+    return true;
 }
-
-#endif 
