@@ -4,6 +4,9 @@
 #include <stdexcept>
 #include <string.h>
 #include "pubsub.h"
+#include "../Libs/PostgresLibpq/postgresLib.h"
+
+extern PGconn* gconn;
 
 static std::unordered_map<uint32_t , publisher_db_entry_t *>pub_db;
 static std::unordered_map<uint32_t , subscriber_db_entry_t *>sub_db;
@@ -92,7 +95,7 @@ public:
 };
 
 bool 
-publisher_db_add_new_publshed_msg (uint32_t pub_id, 
+publisher_publish_msg (uint32_t pub_id, 
                                     uint32_t published_msg_id) {
 
     auto PubEntry = CORDCRUDOperations<uint32_t, publisher_db_entry_t>::\
@@ -109,11 +112,59 @@ publisher_db_add_new_publshed_msg (uint32_t pub_id,
     for (i = 0; i < MAX_PUBLISHED_MSG; i++) {
         if (PubEntry->published_msg_ids[i]) continue;
         PubEntry->published_msg_ids[i] = published_msg_id;
+
+        /* Update PUB-DB table with new publish msg ID*/
+        char sql_query[256];
+        snprintf (sql_query, sizeof(sql_query), 
+                  "UPDATE PUB-DB SET PUBLISHED-MSG-IDS[%d] = %u WHERE PUB-ID = %u;",
+                  i, published_msg_id, pub_id);
+        PGresult *res = PQexec(gconn, sql_query);
+        if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+            printf("Coordinator : Error: Failed to update PUB-DB table with new published msg ID\n");
+        }
+        PQclear(res);
+        PQfinish(gconn);    
         return true;
     }
 
     return false;
 }
+
+bool 
+publisher_unpublish_msg (uint32_t pub_id, 
+                                            uint32_t published_msg_id) {
+
+    auto PubEntry = CORDCRUDOperations<uint32_t, publisher_db_entry_t>::
+                                read(pub_db, pub_id);
+
+    if (!PubEntry) return false;
+
+    int i;
+
+    for (i = 0; i < MAX_PUBLISHED_MSG; i++) {
+        if (PubEntry->published_msg_ids[i] == published_msg_id) break;
+    }
+
+    if (i == MAX_PUBLISHED_MSG) return false;
+
+    PubEntry->published_msg_ids[i] = 0;
+
+    /* Update PUB-DB table with new publish msg ID*/
+
+    char sql_query[256];
+    snprintf (sql_query, sizeof(sql_query), 
+              "UPDATE PUB-DB SET PUBLISHED-MSG-IDS[%d] = %u WHERE PUB-ID = %u;",
+              i, 0, pub_id);
+
+    PGresult *res = PQexec(gconn, sql_query);
+    if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+        printf("Coordinator : Error: Failed to update PUB-DB table with new published msg ID\n");
+    }
+    PQclear(res);
+    PQfinish(gconn);
+    return true;
+}
+
 
 publisher_db_entry_t *
 publisher_db_create (uint32_t pub_id, 
@@ -130,8 +181,180 @@ publisher_db_create (uint32_t pub_id,
     PubEntry->publisher_id = pub_id;
     CORDCRUDOperations<uint32_t, publisher_db_entry_t>::
         create(pub_db, pub_id, PubEntry);
+
+    /* Insert entry into PUB-DB SQL Table */
+    char sql_query[256];
+    snprintf (sql_query, sizeof(sql_query), 
+                  "INSERT INTO PUB-DB (PUB-NAME, PUB-ID, NUM-MSG-PUBLISHED, PUBLISHED-MSG-IDS) "
+                  "VALUES ('%s', %u, %u, %u);",
+                  PubEntry->pub_name, PubEntry->publisher_id, 0, 0);
+
+    PGresult *res = PQexec(gconn, sql_query);
+    if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+        printf("Coordinator : Error: Failed to insert Publisher %s into PUB-DB table\n", PubEntry->pub_name);
+    }
+    PQclear(res);
+    PQfinish(gconn);        
     return PubEntry;
 }
+
+void
+publisher_db_delete (uint32_t pub_id) {
+
+    auto PubEntry = CORDCRUDOperations<uint32_t, publisher_db_entry_t>::
+        read(pub_db, pub_id);
+
+    if (!PubEntry) return;
+
+    CORDCRUDOperations<uint32_t, publisher_db_entry_t>::
+        remove(pub_db, pub_id);
+
+    /* Delete entry from PUB-DB SQL Table */
+    char sql_query[256];
+    snprintf (sql_query, sizeof(sql_query), 
+                  "DELETE FROM PUB-DB WHERE PUB-ID = %u;",
+                  pub_id);
+
+    PGresult *res = PQexec(gconn, sql_query);
+    if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+        printf("Coordinator : Error: Failed to delete Publisher %u from PUB-DB table\n", pub_id);
+    }
+    PQclear(res);
+    PQfinish(gconn);        
+}
+
+  
+/* Subscriber Related Operations */
+subscriber_db_entry_t *
+subscriber_db_create (uint32_t sub_id, 
+                                    char *sub_name) {
+
+    auto SubEntry = CORDCRUDOperations<uint32_t, subscriber_db_entry_t>::
+        read(sub_db, sub_id);
+
+    if (SubEntry)   
+        return SubEntry;
+
+    SubEntry = new subscriber_db_entry_t;
+    strncpy(SubEntry->sub_name, sub_name, sizeof(SubEntry->sub_name));
+    SubEntry->subscriber_id = sub_id;
+    CORDCRUDOperations<uint32_t, subscriber_db_entry_t>::
+        create(sub_db, sub_id, SubEntry);
+    
+    /* Insert entry into SUB-DB SQL Table */
+    char sql_query[256];
+    snprintf (sql_query, sizeof(sql_query), 
+                  "INSERT INTO SUB-DB (SUB-NAME, SUB-ID, NUM-MSG-RECEIVED, SUBSCRIBED-MSG-IDS) "
+                  "VALUES ('%s', %u, %u, %u);",
+                  SubEntry->sub_name, SubEntry->subscriber_id, 0, 0);
+
+    PGresult *res = PQexec(gconn, sql_query);
+    if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+        printf("Coordinator : Error: Failed to insert Subscriber %s into SUB-DB table\n", SubEntry->sub_name);
+    }
+    PQclear(res);
+    PQfinish(gconn);
+    return SubEntry;
+}
+
+void
+subscriber_db_delete (uint32_t sub_id) {
+
+    auto SubEntry = CORDCRUDOperations<uint32_t, subscriber_db_entry_t>::
+        read(sub_db, sub_id);
+
+    if (!SubEntry) return;
+
+    CORDCRUDOperations<uint32_t, subscriber_db_entry_t>::
+        remove(sub_db, sub_id);
+
+    /* Delete entry from SUB-DB SQL Table */
+    char sql_query[256];
+    snprintf (sql_query, sizeof(sql_query), 
+                  "DELETE FROM SUB-DB WHERE SUB-ID = %u;",
+                  sub_id);
+
+    PGresult *res = PQexec(gconn, sql_query);
+    if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+        printf("Coordinator : Error: Failed to delete Subscriber %u from SUB-DB table\n", sub_id);
+    }
+    PQclear(res);
+    PQfinish(gconn);        
+}
+
+bool 
+subscriber_subscribe_msg (uint32_t sub_id, 
+                                            uint32_t msg_id) {
+
+    auto SubEntry = CORDCRUDOperations<uint32_t, subscriber_db_entry_t>::
+        read(sub_db, sub_id);
+
+    if (!SubEntry) return false;
+
+    int i;
+
+    for (i = 0; i < MAX_SUBSCRIBED_MSG; i++) {
+        if (SubEntry->subscriber_msg_ids[i] == msg_id) return false;
+    }
+
+    for (i = 0; i < MAX_SUBSCRIBED_MSG; i++) {
+        if (SubEntry->subscriber_msg_ids[i]) continue;
+        SubEntry->subscriber_msg_ids[i] = msg_id;
+
+        /* Update SUB-DB table with new subscribed msg ID*/
+        char sql_query[256];
+        snprintf (sql_query, sizeof(sql_query), 
+                  "UPDATE SUB-DB SET SUBSCRIBED-MSG-IDS[%d] = %u WHERE SUB-ID = %u;",
+                  i, msg_id, sub_id);
+        PGresult *res = PQexec(gconn, sql_query);
+        if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+            printf("Coordinator : Error: Failed to update SUB-DB table with new subscribed msg ID\n");
+        }
+        PQclear(res);
+        PQfinish(gconn);    
+        return true;
+    }
+    return false;
+ }
+
+bool 
+subscriber_unsubscribe_msg (uint32_t sub_id, 
+                                                uint32_t msg_id) {
+
+    auto SubEntry = CORDCRUDOperations<uint32_t, subscriber_db_entry_t>::
+        read(sub_db, sub_id);
+
+    if (!SubEntry) return false;
+
+    int i;
+
+    for (i = 0; i < MAX_SUBSCRIBED_MSG; i++) {
+        if (SubEntry->subscriber_msg_ids[i] == msg_id) break;
+    }
+
+    if (i == MAX_SUBSCRIBED_MSG) return false;
+
+    SubEntry->subscriber_msg_ids[i] = 0;
+
+    /* Update SUB-DB table with new subscribed msg ID*/
+
+    char sql_query[256];
+    snprintf (sql_query, sizeof(sql_query), 
+              "UPDATE SUB-DB SET SUBSCRIBED-MSG-IDS[%d] = %u WHERE SUB-ID = %u;",
+              i, 0, sub_id);
+
+    PGresult *res = PQexec(gconn, sql_query);
+
+    if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+        printf("Coordinator : Error: Failed to update SUB-DB table with new subscribed msg ID\n");
+    }
+
+    PQclear(res);
+    PQfinish(gconn);
+    return true;
+}
+
+
 
 
 #if 0

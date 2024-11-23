@@ -34,6 +34,21 @@ coord_init_publisher_table() {
         List of Msg IDs Published
     */
 
+    const char *sql_query = "CREATE TABLE PUB-DB ("
+                            "PUB-NAME TEXT PRIMARY KEY NOT NULL,"
+                            "PUB-ID INT PRIMARY KEY NOT NULL,"
+                            "NUM-MSG-PUBLISHED INT NOT NULL,"
+                            "PUBLISHED-MSG-IDS INT[] NOT NULL);";
+
+    PGresult *res = PQexec(gconn, sql_query);
+    if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+        printf("Error: Failed to create PUB-DB table\n");
+        PQclear(res);
+        PQfinish(gconn);
+        exit(1);
+    }
+
+    PQclear(res);
 }
 
 static void 
@@ -47,6 +62,22 @@ coord_init_subscriber_table() {
             Number of Messages Recvd
             List of Msg IDs Subscribed
     */
+
+    const char *sql_query = "CREATE TABLE SUB-DB ("
+                            "SUB-NAME TEXT PRIMARY KEY NOT NULL,"
+                            "SUB-ID INT PRIMARY KEY NOT NULL,"
+                            "NUM-MSG-RECEIVED INT NOT NULL,"
+                            "SUBSCRIBED-MSG-IDS INT[] NOT NULL);";
+
+    PGresult *res = PQexec(gconn, sql_query);
+    if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+        printf("Error: Failed to create SUB-DB table\n");
+        PQclear(res);
+        PQfinish(gconn);
+        exit(1);
+    }
+
+    PQclear(res);
 }
 
 
@@ -59,6 +90,20 @@ coord_init_pub_sub_table() {
             Published Msg Code
             List of Subscriber IDs
     */
+
+    const char *sql_query = "CREATE TABLE PUB-SUB ("
+                            "PUB-MSG-CODE INT PRIMARY KEY NOT NULL,"
+                            "SUBSCRIBER-IDS INT[] NOT NULL);";
+    
+    PGresult *res = PQexec(gconn, sql_query);
+    if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+        printf("Error: Failed to create PUB-SUB table\n");
+        PQclear(res);
+        PQfinish(gconn);
+        exit(1);
+    }
+
+    PQclear(res);
 }
 
 /* This function does the following : 
