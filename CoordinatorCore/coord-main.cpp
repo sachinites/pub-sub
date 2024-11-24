@@ -10,12 +10,14 @@
 #include "pubsub.h"
 #include "../Libs/PostgresLibpq/postgresLib.h"
 #include "../Common/comm-types.h"
+#include "../Common/cmsgOp.h"
 
 extern cmsg_t *
 coordinator_process_publisher_msg (cmsg_t *msg, size_t bytes_read);
-
 extern cmsg_t *
 coordinator_process_subscriber_msg (cmsg_t *msg, size_t bytes_read);
+extern void 
+coordinator_fork_distribution_threads();
 
 PGconn* gconn;
 
@@ -93,7 +95,7 @@ coord_init_subscriber_table() {
     PQclear(res);
 }
 
-
+extern pthread_spinlock_t pub_sub_db_lock;
 static void 
 coord_init_pub_sub_table() {
 
@@ -117,6 +119,8 @@ coord_init_pub_sub_table() {
     }
 
     PQclear(res);
+
+    pthread_spin_init(&pub_sub_db_lock, PTHREAD_PROCESS_PRIVATE);
 }
 
 /* This function does the following : 
@@ -283,6 +287,8 @@ coordinator_recv_msg_listen() {
                 buffer[bytes_read] = '\0';
 
                 cmsg_t *msg = (cmsg_t *)buffer;
+                
+                cmsg_debug_print (msg);
 
                 switch (msg->msg_type)
                 {
@@ -329,6 +335,7 @@ coordinator_main_fn (void *arg) {
     coord_init_publisher_table();
     coord_init_subscriber_table();
     coord_init_pub_sub_table() ;
+    coordinator_fork_distribution_threads();
     coordinator_recv_msg_listen();
 
     return NULL;

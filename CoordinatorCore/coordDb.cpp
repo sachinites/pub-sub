@@ -6,23 +6,25 @@
 #include <assert.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <pthread.h>
 #include "../Libs/tlv.h"
 #include "pubsub.h"
+#include "CoordDb.h"
 #include "../Common/comm-types.h"
 #include "../Libs/PostgresLibpq/postgresLib.h"
 #include "CoordIpc.h"
 
 extern PGconn* gconn;
 
-static std::unordered_map<uint32_t , publisher_db_entry_t *>pub_db;
-static std::unordered_map<uint32_t , subscriber_db_entry_t *>sub_db;
-static std::unordered_map<uint32_t , pub_sub_db_entry_t *>pub_sub_db;
+std::unordered_map<uint32_t , publisher_db_entry_t *>pub_db;
+std::unordered_map<uint32_t , subscriber_db_entry_t *>sub_db;
+std::unordered_map<uint32_t , pub_sub_db_entry_t *>pub_sub_db;
+pthread_spinlock_t pub_sub_db_lock;
 
-// CRUD template
 template <typename Key, typename Value>
 class CORDCRUDOperations {
 public:
-    // Create or Insert
+
     static bool create(std::unordered_map<Key, Value*>& db, Key key, Value* value) {
 
         auto it = db.find(key);
@@ -34,17 +36,16 @@ public:
         return true;
     }
 
-    // Read
     static Value* read(const std::unordered_map<Key, Value*>& db, Key key) {
 
         auto it = db.find(key);
         if (it != db.end()) {
             return it->second;
         }
-        return nullptr; // Return nullptr if key doesn't exist
+        return nullptr; 
     }
 
-    // Update
+
     static bool update(std::unordered_map<Key, Value*>& db, Key key, Value* newValue) {
 
         auto it = db.find(key);
@@ -52,12 +53,11 @@ public:
             it->second = newValue;
             return true;
         } else {
-            //throw std::runtime_error("Key not found in the database for update.");
+
         }
         return false;
     }
 
-    // Delete
     static Value* remove(std::unordered_map<Key, Value*>& db, Key key) {
         
         Value *ret = nullptr;
@@ -334,6 +334,7 @@ subscriber_subscribe_msg (uint32_t sub_id,
         
         }
         PQclear(res);
+        pub_sub_db_create (msg_id, SubEntry);
         return true;
     }
     return false;
@@ -373,6 +374,7 @@ subscriber_unsubscribe_msg (uint32_t sub_id,
     }
 
     PQclear(res);
+    pub_sub_db_delete (msg_id, sub_id);
     return true;
 }
 
@@ -456,4 +458,113 @@ coordinator_process_subscriber_ipc_subscription (
     } ITERATE_TLV_END;
 
     return true;
+}
+
+
+pub_sub_db_entry_t *
+pub_sub_db_create (uint32_t msg_id, 
+                                    subscriber_db_entry_t *SubEntry) {
+
+    auto PubSubEntry = pub_sub_db_get (msg_id);
+
+    if (!PubSubEntry) {
+
+        PubSubEntry = new pub_sub_db_entry_t;
+        memset (PubSubEntry, 0, sizeof(*PubSubEntry));
+        PubSubEntry->publish_msg_code = msg_id;
+
+        pthread_spin_lock(&pub_sub_db_lock);
+        CORDCRUDOperations<uint32_t, pub_sub_db_entry_t>::
+            create(pub_sub_db, msg_id, PubSubEntry);
+        pthread_spin_unlock(&pub_sub_db_lock);
+
+        /* Insert entry into PUB-SUB-DB SQL Table */
+        char sql_query[256];
+        snprintf (sql_query, sizeof(sql_query), 
+                  "INSERT INTO %s.%s (PUB_MSG_CODE, SUBSCRIBER_IDS) "
+                  "VALUES (%u, ARRAY[%u]);",
+                    COORD_SCHEMA_NAME, PUB_SUB_TABLE_NAME,
+                  PubSubEntry->publish_msg_code, SubEntry->subscriber_id);
+
+        PGresult *res = PQexec(gconn, sql_query);
+        if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+            printf("Coordinator : Error: Failed to insert PUB-SUB-DB table with new subscriber ID, error-code = %u, %s\n", PQresultStatus(res), PQerrorMessage(gconn));
+        }
+        PQclear(res);
+        return PubSubEntry;
+    }
+
+    for (size_t i = 0; i < PubSubEntry->subscribers.size(); ++i)
+    {
+        if (PubSubEntry->subscribers[i]->subscriber_id == SubEntry->subscriber_id)
+        {
+            printf("Coordinator : INFO : Subscriber ID [%s, %u] already subscribed to Msg Code %u\n", SubEntry->sub_name, SubEntry->subscriber_id, msg_id);
+            return PubSubEntry;
+        }
+    }
+
+    pthread_spin_lock(&pub_sub_db_lock);
+    PubSubEntry->subscribers.push_back(SubEntry);
+    pthread_spin_unlock(&pub_sub_db_lock);
+
+    /* Update the SQL DB now*/
+    char sql_query[256];
+    snprintf(sql_query, sizeof(sql_query),
+             "UPDATE %s.%s SET SUBSCRIBER_IDS = ARRAY_APPEND(SUBSCRIBER_IDS, %u) "
+             "WHERE PUB_MSG_CODE = %u;",
+             COORD_SCHEMA_NAME, PUB_SUB_TABLE_NAME,
+             SubEntry->subscriber_id, msg_id);
+
+    PGresult *res = PQexec(gconn, sql_query);
+    if (PQresultStatus(res) != PGRES_COMMAND_OK)
+    {
+        printf("Coordinator : Error: Failed to update PUB-SUB-DB table with new subscriber ID\n");
+    }
+
+    PQclear(res);
+    return PubSubEntry;
+}
+
+
+void 
+pub_sub_db_delete (uint32_t msg_id, 
+                                    uint32_t sub_id) {
+
+    auto PubSubEntry = pub_sub_db_get (msg_id);
+    if (!PubSubEntry) return;
+
+    pthread_spin_lock(&pub_sub_db_lock);
+    for (size_t i = 0; i < PubSubEntry->subscribers.size(); ++i) {
+
+        if (PubSubEntry->subscribers[i]->subscriber_id == sub_id) {
+            PubSubEntry->subscribers.erase(PubSubEntry->subscribers.begin() + i);
+            pthread_spin_unlock(&pub_sub_db_lock);
+
+             /* Update the SQL DB now*/
+            char sql_query[256];
+            snprintf (sql_query, sizeof(sql_query), 
+                      "UPDATE %s.%s SET SUBSCRIBER_IDS = ARRAY_REMOVE(SUBSCRIBER_IDS, %u) WHERE PUB_MSG_CODE = %u;",
+                        COORD_SCHEMA_NAME, PUB_SUB_TABLE_NAME,
+                      sub_id, msg_id);
+
+            PGresult *res = PQexec(gconn, sql_query);
+            if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+                printf("Coordinator : Error: Failed to update PUB-SUB-DB table with new subscriber ID\n");
+            }
+
+            PQclear(res);
+            return;
+        }
+    }
+    pthread_spin_unlock(&pub_sub_db_lock);
+}
+
+pub_sub_db_entry_t *
+pub_sub_db_get (uint32_t msg_id) {
+
+    pthread_spin_lock(&pub_sub_db_lock);
+    pub_sub_db_entry_t *res =  CORDCRUDOperations<uint32_t, pub_sub_db_entry_t>::
+        read(pub_sub_db, msg_id);
+    pthread_spin_unlock(&pub_sub_db_lock);
+    return res;
 }

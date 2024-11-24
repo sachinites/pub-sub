@@ -7,10 +7,11 @@ COORDINATOR_OBJS=coord-main.o \
 										  coord_msg.o \
 										  coordDb.o \
 										  CoordDistribution.o \
+										  ../Common/cmsgOp.o \
 										  ../Libs/PostgresLibpq/postgresLib.o 
 
 #standard libs
-STLIBS=-lpq
+STLIBS=-lpq -lpthread
 
 #Non-standard libs
 USERLIBS=
@@ -28,6 +29,8 @@ coordDb.o:coordDb.cpp
 	${CC} ${CFLAGS} coordDb.cpp -o coordDb.o
 CoordDistribution.o:CoordDistribution.cpp
 	${CC} ${CFLAGS} CoordDistribution.cpp -o CoordDistribution.o
+../Common/cmsgOp.o:../Common/cmsgOp.cpp
+	${CC} ${CFLAGS} ../Common/cmsgOp.cpp -o ../Common/cmsgOp.o
 
 ../Libs/PostgresLibpq/postgresLib.o:../Libs/PostgresLibpq/postgresLib.cpp 
 	${CC} ${CFLAGS} ../Libs/PostgresLibpq/postgresLib.cpp -o ../Libs/PostgresLibpq/postgresLib.o
@@ -36,4 +39,5 @@ clean:
 	rm -rf *.o 
 	rm -rf ../Libs/PostgresLibpq/*.o
 	rm -rf ../Libs/PostgresLibpq/*.a
+	rm -rf ../Common/*.o
 	rm -rf ${TARGET}

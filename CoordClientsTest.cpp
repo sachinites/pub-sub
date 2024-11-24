@@ -7,6 +7,7 @@
 #include <errno.h>
 #include "Libs/tlv.h"
 #include "Common/comm-types.h"
+#include "Common/cmsgOp.h"
 
 static void 
  coordinator_register (int sock_fd, char *entity_name, 
@@ -26,6 +27,7 @@ static void
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(COORD_UDP_PORT);
     server_addr.sin_addr.s_addr = htonl(COORD_IP_ADDR);
+    cmsg_debug_print (msg);
     int rc = sendto (sock_fd, (char *)msg, sizeof (*msg) + msg->msg_size, 0, 
         (struct sockaddr *)&server_addr, sizeof (struct sockaddr));
 
@@ -51,6 +53,7 @@ static void
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(COORD_UDP_PORT);
     server_addr.sin_addr.s_addr = htonl(COORD_IP_ADDR);
+    cmsg_debug_print (msg);
     int rc = sendto (sock_fd, (char *)msg, sizeof (*msg), 0, 
         (struct sockaddr *)&server_addr, sizeof (struct sockaddr));
     if (rc < 0) {
@@ -163,6 +166,7 @@ main (int arhc, char **argv) {
             uint16_t *port = (uint16_t *) (ipc_skt_tlv + 4);
             *port = htons(40000);
 
+            cmsg_debug_print (subscriber_ipc_msg);
             int rc = sendto(sock_fd, (char *)subscriber_ipc_msg, 
                                     sizeof(*subscriber_ipc_msg) + subscriber_ipc_msg->msg_size, 
                                     0, (struct sockaddr *)&server_addr, sizeof(struct sockaddr));

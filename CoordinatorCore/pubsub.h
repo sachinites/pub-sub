@@ -43,10 +43,9 @@ typedef struct subscriber_db_entry_ {
 /* Pub-Sub DB*/
 typedef struct pub_sub_db_entry_ {
 
-
     uint32_t publish_msg_code; 
-    std::vector <uint32_t> subscriber_ids;
-    
+    std::vector <subscriber_db_entry_t *> subscribers;
+
 } pub_sub_db_entry_t;
 
 #endif 

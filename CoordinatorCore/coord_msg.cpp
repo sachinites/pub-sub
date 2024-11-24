@@ -6,15 +6,12 @@
 #include <arpa/inet.h>
 #include "../Libs/tlv.h"
 #include "../Common/comm-types.h"
+#include "../Common/cmsgOp.h"
 #include "CoordDb.h"
 #include "pubsub.h"
 
 extern void 
 coordinator_accept_pubmsg_for_distribution_to_subcribers (cmsg_t *cmsg) ;
-
-
-template <typename Key, typename Value>
-class CORDCRUDOperations;
 
 static uint32_t 
 coord_generate_id () {
