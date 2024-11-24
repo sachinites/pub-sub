@@ -119,8 +119,6 @@ coord_init_pub_sub_table() {
     }
 
     PQclear(res);
-
-    pthread_spin_init(&pub_sub_db_lock, PTHREAD_PROCESS_PRIVATE);
 }
 
 /* This function does the following : 

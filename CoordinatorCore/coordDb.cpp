@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <pthread.h>
+#include <memory>
+#include <concepts>
 #include "../Libs/tlv.h"
 #include "pubsub.h"
 #include "CoordDb.h"
@@ -17,15 +19,14 @@
 extern PGconn* gconn;
 
 std::unordered_map<uint32_t , publisher_db_entry_t *>pub_db;
-std::unordered_map<uint32_t , subscriber_db_entry_t *>sub_db;
+std::unordered_map<uint32_t , std::shared_ptr<subscriber_db_entry_t>>sub_db;
 std::unordered_map<uint32_t , pub_sub_db_entry_t *>pub_sub_db;
-pthread_spinlock_t pub_sub_db_lock;
 
 template <typename Key, typename Value>
 class CORDCRUDOperations {
 public:
 
-    static bool create(std::unordered_map<Key, Value*>& db, Key key, Value* value) {
+    static bool create(std::unordered_map<Key, Value>& db, Key key, Value value) {
 
         auto it = db.find(key);
         if (it != db.end()) {
@@ -36,8 +37,9 @@ public:
         return true;
     }
 
-    static Value* read(const std::unordered_map<Key, Value*>& db, Key key) {
-
+    static Value read(std::unordered_map<Key, Value>& db, Key key) 
+        requires (std::is_pointer_v<Value>)
+    {
         auto it = db.find(key);
         if (it != db.end()) {
             return it->second;
@@ -45,8 +47,17 @@ public:
         return nullptr; 
     }
 
+    static Value read(std::unordered_map<Key, Value>& db, Key key) 
+        requires (!std::is_pointer_v<Value>)
+    {
+        auto it = db.find(key);
+        if (it != db.end()) {
+            return it->second;
+        }
+        return Value();
+    }
 
-    static bool update(std::unordered_map<Key, Value*>& db, Key key, Value* newValue) {
+    static bool update(std::unordered_map<Key, Value*>& db, Key key, Value newValue) {
 
         auto it = db.find(key);
         if (it != db.end()) {
@@ -58,17 +69,33 @@ public:
         return false;
     }
 
-    static Value* remove(std::unordered_map<Key, Value*>& db, Key key) {
-        
-        Value *ret = nullptr;
+    static Value remove(std::unordered_map<Key, Value>& db, Key key) 
+        requires (std::is_pointer_v<Value>)
+    {
+        Value ret = nullptr;
         auto it = db.find(key);
         if (it != db.end()) {
+            ret = it->second;
+            db.erase(it);
+        } else {
+            throw std::runtime_error("Key not found in the database for deletion.");
+        }
+        return ret;
+    }
+
+    static Value remove(std::unordered_map<Key, Value>& db, Key key) 
+        requires (!std::is_pointer_v<Value>)
+    {
+        Value ret;
+        auto it = db.find(key);
+        if (it != db.end()) {
+            ret = it->second;
             db.erase(it);
             return ret;
         } else {
             throw std::runtime_error("Key not found in the database for deletion.");
+            return Value();
         }
-        return nullptr;
     }
 
     // Display , Since each Value Type needs to be printed differently, we use template specialization
@@ -104,7 +131,7 @@ bool
 publisher_publish_msg (uint32_t pub_id, 
                                     uint32_t published_msg_id) {
 
-    auto PubEntry = CORDCRUDOperations<uint32_t, publisher_db_entry_t>::\
+    auto PubEntry = CORDCRUDOperations<uint32_t, publisher_db_entry_t *>::\
                                 read(pub_db, pub_id);
 
     if (!PubEntry) return false;
@@ -129,7 +156,6 @@ publisher_publish_msg (uint32_t pub_id,
             printf("Coordinator : Error: Failed to update PUB-DB table with new published msg ID\n");
         }
         PQclear(res);
-        PQfinish(gconn);    
         return true;
     }
 
@@ -140,7 +166,7 @@ bool
 publisher_unpublish_msg (uint32_t pub_id, 
                                             uint32_t published_msg_id) {
 
-    auto PubEntry = CORDCRUDOperations<uint32_t, publisher_db_entry_t>::
+    auto PubEntry = CORDCRUDOperations<uint32_t, publisher_db_entry_t *>::
                                 read(pub_db, pub_id);
 
     if (!PubEntry) return false;
@@ -168,7 +194,6 @@ publisher_unpublish_msg (uint32_t pub_id,
         printf("Coordinator : Error: Failed to update PUB-DB table with new published msg ID\n");
     }
     PQclear(res);
-    PQfinish(gconn);
     return true;
 }
 
@@ -177,7 +202,7 @@ publisher_db_entry_t *
 publisher_db_create (uint32_t pub_id, 
                                     char *pub_name) {
 
-    auto PubEntry = CORDCRUDOperations<uint32_t, publisher_db_entry_t>::
+    auto PubEntry = CORDCRUDOperations<uint32_t, publisher_db_entry_t *>::
         read(pub_db, pub_id);
 
     if (PubEntry)
@@ -188,7 +213,7 @@ publisher_db_create (uint32_t pub_id,
 
     strncpy(PubEntry->pub_name, pub_name, sizeof(PubEntry->pub_name));
     PubEntry->publisher_id = pub_id;
-    CORDCRUDOperations<uint32_t, publisher_db_entry_t>::
+    CORDCRUDOperations<uint32_t, publisher_db_entry_t *>::
         create(pub_db, pub_id, PubEntry);
 
     /* Insert entry into PUB-DB SQL Table */
@@ -211,13 +236,12 @@ publisher_db_create (uint32_t pub_id,
 void
 publisher_db_delete (uint32_t pub_id) {
 
-    auto PubEntry = CORDCRUDOperations<uint32_t, publisher_db_entry_t>::
+    auto PubEntry = CORDCRUDOperations<uint32_t, publisher_db_entry_t *>::
         read(pub_db, pub_id);
 
     if (!PubEntry) return;
 
-    CORDCRUDOperations<uint32_t, publisher_db_entry_t>::
-        remove(pub_db, pub_id);
+    CORDCRUDOperations<uint32_t, publisher_db_entry_t *>::remove(pub_db, pub_id);
 
     /* Delete entry from PUB-DB SQL Table */
     char sql_query[256];
@@ -231,26 +255,29 @@ publisher_db_delete (uint32_t pub_id) {
         printf("Coordinator : Error: Failed to delete Publisher %u from PUB-DB table\n", pub_id);
     }
     PQclear(res);
+
+    /* It is not referenced by shared ptr , so delete it explicitely*/
+    delete PubEntry;
 }
 
   
 /* Subscriber Related Operations */
-subscriber_db_entry_t *
+std::shared_ptr<subscriber_db_entry_t> 
 subscriber_db_create (uint32_t sub_id, 
                                     char *sub_name) {
 
-    auto SubEntry = CORDCRUDOperations<uint32_t, subscriber_db_entry_t>::
+    std::shared_ptr<subscriber_db_entry_t> SubEntry = 
+        CORDCRUDOperations<uint32_t, std::shared_ptr<subscriber_db_entry_t>>::
         read(sub_db, sub_id);
 
     if (SubEntry)   
         return SubEntry;
 
-    SubEntry = new subscriber_db_entry_t;
-    memset (SubEntry, 0, sizeof(*SubEntry));
-
+    SubEntry = std::make_shared<subscriber_db_entry_t>();
+    SubEntry->clear();
     strncpy(SubEntry->sub_name, sub_name, sizeof(SubEntry->sub_name));
     SubEntry->subscriber_id = sub_id;
-    CORDCRUDOperations<uint32_t, subscriber_db_entry_t>::
+    CORDCRUDOperations<uint32_t, std::shared_ptr<subscriber_db_entry_t>>::
         create(sub_db, sub_id, SubEntry);
     
     /* Insert entry into SUB-DB SQL Table */
@@ -272,13 +299,19 @@ subscriber_db_create (uint32_t sub_id,
 void
 subscriber_db_delete (uint32_t sub_id) {
 
-    auto SubEntry = CORDCRUDOperations<uint32_t, subscriber_db_entry_t>::
+    std::shared_ptr<subscriber_db_entry_t> SubEntry = 
+        CORDCRUDOperations<uint32_t, std::shared_ptr<subscriber_db_entry_t>>::
         read(sub_db, sub_id);
 
     if (!SubEntry) return;
 
-    CORDCRUDOperations<uint32_t, subscriber_db_entry_t>::
+    CORDCRUDOperations<uint32_t, std::shared_ptr<subscriber_db_entry_t>>::
         remove(sub_db, sub_id);
+
+
+    if (SubEntry->ipc_struct.netskt.sock_fd) {
+        close (SubEntry->ipc_struct.netskt.sock_fd);
+    }   
 
     /* Delete entry from SUB-DB SQL Table */
     char sql_query[256];
@@ -298,7 +331,7 @@ bool
 subscriber_subscribe_msg (uint32_t sub_id, 
                                             uint32_t msg_id) {
 
-    auto SubEntry = CORDCRUDOperations<uint32_t, subscriber_db_entry_t>::
+    auto SubEntry = CORDCRUDOperations<uint32_t, std::shared_ptr<subscriber_db_entry_t>>::
         read(sub_db, sub_id);
 
     if (!SubEntry) {
@@ -344,7 +377,8 @@ bool
 subscriber_unsubscribe_msg (uint32_t sub_id, 
                                                 uint32_t msg_id) {
 
-    auto SubEntry = CORDCRUDOperations<uint32_t, subscriber_db_entry_t>::
+    std::shared_ptr<subscriber_db_entry_t> SubEntry = 
+        CORDCRUDOperations<uint32_t, std::shared_ptr<subscriber_db_entry_t>>::
         read(sub_db, sub_id);
 
     if (!SubEntry) return false;
@@ -386,7 +420,7 @@ coordinator_process_subscriber_ipc_subscription (
     assert (cmsg->msg_type == SUBS_TO_COORD);
     assert (cmsg->sub_msg_type == SUB_MSG_IPC_CHANNEL_ADD);
 
-    auto SubEntry = CORDCRUDOperations<uint32_t, subscriber_db_entry_t>::
+    auto SubEntry = CORDCRUDOperations<uint32_t, std::shared_ptr<subscriber_db_entry_t>>::
         read(sub_db, sub_id);
 
     if (!SubEntry) {
@@ -463,20 +497,19 @@ coordinator_process_subscriber_ipc_subscription (
 
 pub_sub_db_entry_t *
 pub_sub_db_create (uint32_t msg_id, 
-                                    subscriber_db_entry_t *SubEntry) {
+                                std::shared_ptr<subscriber_db_entry_t> SubEntry) {
 
     auto PubSubEntry = pub_sub_db_get (msg_id);
 
     if (!PubSubEntry) {
 
         PubSubEntry = new pub_sub_db_entry_t;
-        memset (PubSubEntry, 0, sizeof(*PubSubEntry));
+        PubSubEntry->clear();
         PubSubEntry->publish_msg_code = msg_id;
-
-        pthread_spin_lock(&pub_sub_db_lock);
-        CORDCRUDOperations<uint32_t, pub_sub_db_entry_t>::
+        PubSubEntry->subscribers.push_back(SubEntry);
+        
+        CORDCRUDOperations<uint32_t, pub_sub_db_entry_t *>::
             create(pub_sub_db, msg_id, PubSubEntry);
-        pthread_spin_unlock(&pub_sub_db_lock);
 
         /* Insert entry into PUB-SUB-DB SQL Table */
         char sql_query[256];
@@ -503,9 +536,7 @@ pub_sub_db_create (uint32_t msg_id,
         }
     }
 
-    pthread_spin_lock(&pub_sub_db_lock);
     PubSubEntry->subscribers.push_back(SubEntry);
-    pthread_spin_unlock(&pub_sub_db_lock);
 
     /* Update the SQL DB now*/
     char sql_query[256];
@@ -529,16 +560,16 @@ pub_sub_db_create (uint32_t msg_id,
 void 
 pub_sub_db_delete (uint32_t msg_id, 
                                     uint32_t sub_id) {
-
+    
     auto PubSubEntry = pub_sub_db_get (msg_id);
+
     if (!PubSubEntry) return;
 
-    pthread_spin_lock(&pub_sub_db_lock);
     for (size_t i = 0; i < PubSubEntry->subscribers.size(); ++i) {
 
         if (PubSubEntry->subscribers[i]->subscriber_id == sub_id) {
+
             PubSubEntry->subscribers.erase(PubSubEntry->subscribers.begin() + i);
-            pthread_spin_unlock(&pub_sub_db_lock);
 
              /* Update the SQL DB now*/
             char sql_query[256];
@@ -556,15 +587,12 @@ pub_sub_db_delete (uint32_t msg_id,
             return;
         }
     }
-    pthread_spin_unlock(&pub_sub_db_lock);
 }
 
 pub_sub_db_entry_t *
 pub_sub_db_get (uint32_t msg_id) {
 
-    pthread_spin_lock(&pub_sub_db_lock);
-    pub_sub_db_entry_t *res =  CORDCRUDOperations<uint32_t, pub_sub_db_entry_t>::
+    pub_sub_db_entry_t *res =  CORDCRUDOperations<uint32_t, pub_sub_db_entry_t *>::
         read(pub_sub_db, msg_id);
-    pthread_spin_unlock(&pub_sub_db_lock);
     return res;
 }

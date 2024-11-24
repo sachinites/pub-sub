@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <memory>
 #include "../Common/comm-types.h"
 
 typedef struct publisher_db_entry_ publisher_db_entry_t; 
@@ -23,7 +24,7 @@ publisher_unpublish_msg (uint32_t pub_id,
 /* Subscriber DB Operations */
 typedef struct subscriber_db_entry_ subscriber_db_entry_t;
 
-subscriber_db_entry_t *
+std::shared_ptr<subscriber_db_entry_t> 
 subscriber_db_create (uint32_t sub_id, 
                                     char *sub_name);
 
@@ -49,7 +50,7 @@ typedef struct pub_sub_db_entry_ pub_sub_db_entry_t;
 
 pub_sub_db_entry_t *
 pub_sub_db_create (uint32_t msg_id, 
-                                 subscriber_db_entry_t *SubEntry);
+                                 std::shared_ptr<subscriber_db_entry_t> SubEntry);
 
 void 
 pub_sub_db_delete (uint32_t msg_id, 

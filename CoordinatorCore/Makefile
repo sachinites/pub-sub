@@ -1,4 +1,4 @@
-CC=g++
+CC=g++ -std=c++20
 CFLAGS=-g -c
 
 TARGET=coordinator.exe

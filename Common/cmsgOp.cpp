@@ -54,6 +54,9 @@ cord_prepare_msg (msg_type_t msg_type,
     return reply_msg;
 }
 
+static void 
+gdb_break() {}
+
 void 
 cmsg_debug_print (cmsg_t *cmsg) {
 
@@ -76,6 +79,7 @@ cmsg_debug_print (cmsg_t *cmsg) {
         printf ("TLV Type : %u | ", tlv_type);
         printf ("TLV Length : %u | ", tlv_len);
         printf ("TLV Value : %s\n", tlv_value);
+        gdb_break();
 
     } ITERATE_TLV_END;
 

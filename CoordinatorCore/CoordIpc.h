@@ -21,6 +21,8 @@ typedef union ipc_struct_ {
         uint32_t ip_addr;
         uint16_t port;
         uint8_t transport_type;
+        /* Dynamically computed */
+        int sock_fd;
 
     } netskt;
 

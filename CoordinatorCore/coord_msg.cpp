@@ -35,7 +35,7 @@ coordinator_process_publisher_msg (cmsg_t *msg, size_t bytes_read) {
 
         case SUB_MSG_ADD:
         {
-            bool rc = publisher_publish_msg (msg->id.publisher_id, msg->msg_id);
+            bool rc = publisher_publish_msg (msg->id.publisher_id, msg->msg_code);
             if (!rc) {
                 printf ("Coordinator : Error : New Msg Publishing Failed by Published ID %u\n", msg->id.publisher_id);
             }
@@ -43,7 +43,7 @@ coordinator_process_publisher_msg (cmsg_t *msg, size_t bytes_read) {
         break;
         case SUB_MSG_DELETE:
         {
-            bool rc = publisher_unpublish_msg (msg->id.publisher_id, msg->msg_id);
+            bool rc = publisher_unpublish_msg (msg->id.publisher_id, msg->msg_code);
         }
         break;
         case SUB_MSG_REGISTER:
@@ -140,7 +140,8 @@ coordinator_process_subscriber_msg (cmsg_t *msg, size_t bytes_read) {
                     SUB_MSG_ERROR, 
                     ERROR_TLV_MISSING, 1, false, TLV_CODE_NAME);
             }
-            subscriber_db_entry_t *SubEntry =  subscriber_db_create (coord_generate_id() ,  sub_name);
+
+            std::shared_ptr<subscriber_db_entry_t> SubEntry =  subscriber_db_create (coord_generate_id() ,  sub_name);
             cmsg_t *reply_msg =  cord_prepare_msg (
                         COORD_TO_SUBS, 
                         SUB_MSG_ID_ALLOC_SUCCESS, 

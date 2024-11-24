@@ -16,4 +16,5 @@ Scale the distributor by implementing clustering, allowing the system to handle 
 Implement a heartbeat mechanism to check the liveness of publishers and subscribers.
 Compress messages before transmitting to reduce bandwidth usage.
 Require explicit acknowledgments from subscribers to ensure they successfully received a message.
+Making Coordinator Multithreaded, pinning the msg distributor's thread to CPU
 
