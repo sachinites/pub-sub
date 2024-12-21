@@ -7,6 +7,8 @@
 #include <arpa/inet.h>
 #include "client.h"
 
+static char buffer[1024];
+
 int 
 main (int argc, char **argv) {
     
@@ -56,15 +58,16 @@ main (int argc, char **argv) {
 
     /* Report the channel of communication */
     ipc_struct_t ipc_struct;
-    ipc_struct.netskt.ip_addr = self_addr.sin_addr.s_addr;  // 127.0.0.1
+    ipc_struct.netskt.ip_addr = htonl(self_addr.sin_addr.s_addr);  // 127.0.0.1
     ipc_struct.netskt.port = htons(self_addr.sin_port);
     subscriber_subscribe_ipc_channel (sock_fd, sub_id, IPC_TYPE_NETSKT, &ipc_struct);
 
     while (1) {
         
-        rc = recvfrom (sock_fd, (char *)&cmsg, sizeof (cmsg), 
+        rc = recvfrom (sock_fd, (char *)buffer, sizeof (buffer), 
                             0, NULL, NULL);
-        printf ("Mesg Recvd : %s\n", (char *)cmsg.msg);
+        printf ("Message recvd by Subscriber : Sub1\n");
+        cmsg_debug_print ((cmsg_t *)buffer);
     }
 
     close (sock_fd);

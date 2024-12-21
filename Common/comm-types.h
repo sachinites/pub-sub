@@ -5,6 +5,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
 #include "../Libs/tlv.h"
 
 #define COORD_MSGQ_NAME     "/MAIN-COORD-MSGQ"
@@ -96,12 +97,23 @@ typedef struct cmsg_ {
         uint32_t subscriber_id;
     } id;
     cmsg_meta_data_t meta_data;
+    uint32_t ref_count;
     uint16_t tlv_buffer_size;
-    uint16_t msg_size;
     char msg[0];
 
 } cmsg_t;
 
+static inline void 
+cmsg_reference (cmsg_t *cmsg) {cmsg->ref_count++;}  
+
+static inline void 
+cmsg_dereference (cmsg_t *cmsg) {
+    
+    assert(cmsg->ref_count);
+    cmsg->ref_count--;
+    if (cmsg->ref_count) return;
+    free (cmsg);
+}
 
 #define TLV_CODE_NAME   1
 #define TLV_CODE_NAME_LEN   32

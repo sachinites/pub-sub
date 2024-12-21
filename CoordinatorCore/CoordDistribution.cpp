@@ -28,8 +28,8 @@ class CoordDistQueue {
         void release_distribution_queue() {
             for (int i = 0; i < CMSG_PR_MAX; i++) {
                 for (auto vdata : dist_queue[i]) {
-                    free (vdata->cmsg);
-                    vdata->sub_entry = NULL;
+                    cmsg_dereference (vdata->cmsg);
+                    vdata->sub_entry = nullptr;
                     free (vdata);
                 }
                 dist_queue[i].clear();
@@ -95,8 +95,8 @@ coordinator_listen_distribution_queue (void *arg) {
 
     while ((vdata = dist_queue->Dequeue())) {
         coordinator_dispatch (vdata->sub_entry, vdata->cmsg);
-        free(vdata->cmsg);
-        vdata->sub_entry = NULL;  
+        cmsg_dereference(vdata->cmsg);
+        vdata->sub_entry = nullptr;
         free (vdata);
     }
 
@@ -134,6 +134,7 @@ coordinator_enqueue_distribution_queue (
 
     vector_data_t *vdata = (vector_data_t *)calloc (1, sizeof (vector_data_t));
     vdata->cmsg = cmsg;
+    cmsg_reference (cmsg);
     vdata->sub_entry = SubEntry;
     gdist_queue[queue_index]->Enqueue (vdata);
     queue_index++;
@@ -150,15 +151,14 @@ coordinator_accept_pubmsg_for_distribution_to_subcribers (cmsg_t *cmsg) {
         return;
     }
 
+    cmsg_t *dist_msg = (cmsg_t *)  calloc   (1, sizeof (*dist_msg) + cmsg->tlv_buffer_size);
+    memcpy (dist_msg, cmsg, sizeof (cmsg_t) );
+    /* Now override the fields as required*/
+    dist_msg->msg_type = COORD_TO_SUBS;
+    dist_msg->tlv_buffer_size = cmsg->tlv_buffer_size;
+    memcpy (dist_msg->msg, (char *)cmsg->msg, cmsg->tlv_buffer_size);
     /* Distribute the message to interested subscribers */
     for (auto sub_entry : pub_sub_entry->subscribers) {
-        cmsg_t *dist_msg = (cmsg_t *)  calloc   (1, sizeof (*dist_msg) + cmsg->msg_size - cmsg->tlv_buffer_size);
-        memcpy (dist_msg, cmsg, sizeof (cmsg_t) );
-        /* Now override the fields as required*/
-        dist_msg->msg_type = COORD_TO_SUBS;
-        dist_msg->tlv_buffer_size = 0;
-        dist_msg->msg_size = cmsg->msg_size - cmsg->tlv_buffer_size;
-        memcpy (dist_msg->msg, (char *)cmsg->msg + cmsg->tlv_buffer_size, dist_msg->msg_size);
         coordinator_enqueue_distribution_queue (dist_msg, sub_entry);
     }
 }
@@ -199,14 +199,13 @@ coordinator_dispatch (std::shared_ptr<subscriber_db_entry_t> SubEntry, cmsg_t *c
             if (SubEntry->ipc_struct.netskt.sock_fd > 0) {
                 
                 int rc = sendto (SubEntry->ipc_struct.netskt.sock_fd, 
-                    (char *)cmsg, sizeof (*cmsg) + cmsg->msg_size, 0, 
+                    (char *)cmsg, sizeof (*cmsg) + cmsg->tlv_buffer_size, 0, 
                     (struct sockaddr *)&server_addr, sizeof (struct sockaddr));
 
                 if (rc < 0) {
                     printf ("Coordinator : Error : Send Failed, errno = %d\n", errno);
                 }
 
-                free(cmsg);
                 break;
             }
 
@@ -220,14 +219,13 @@ coordinator_dispatch (std::shared_ptr<subscriber_db_entry_t> SubEntry, cmsg_t *c
 
             SubEntry->ipc_struct.netskt.sock_fd = sock_fd;
 
-            int rc = sendto (sock_fd, (char *)cmsg, sizeof (*cmsg) + cmsg->msg_size, 0, 
+            int rc = sendto (sock_fd, (char *)cmsg, sizeof (*cmsg) + cmsg->tlv_buffer_size, 0, 
                         (struct sockaddr *)&server_addr, sizeof (struct sockaddr));
 
             if (rc < 0) {
                 printf ("Coordinator : Error : Send Failed, errno = %d\n", errno);
             }
 
-            free(cmsg);
         }
         break;
 

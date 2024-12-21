@@ -206,7 +206,7 @@ coordinator_init_sql_db() {
 static void 
 coordinator_reply (int sock_fd, cmsg_t *reply_msg, struct sockaddr_in *client_addr) {
 
-    size_t msg_size_to_send = sizeof (*reply_msg) + reply_msg->msg_size;
+    size_t msg_size_to_send = sizeof (*reply_msg) + reply_msg->tlv_buffer_size;
     int rc = sendto(sock_fd, (char *)reply_msg, msg_size_to_send, 0,
                     (struct sockaddr *)client_addr, sizeof(struct sockaddr));
     if (rc < 0) {

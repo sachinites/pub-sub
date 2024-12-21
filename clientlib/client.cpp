@@ -32,7 +32,7 @@ pub_sub_dispatch_cmsg (
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(COORD_UDP_PORT);
     server_addr.sin_addr.s_addr = htonl(COORD_IP_ADDR);
-    int rc = sendto (sock_fd, (char *)cmsg, sizeof (*cmsg) + cmsg->msg_size, 0, 
+    int rc = sendto (sock_fd, (char *)cmsg, sizeof (*cmsg) + cmsg->tlv_buffer_size, 0, 
         (struct sockaddr *)&server_addr, sizeof (struct sockaddr));
     return rc;
 }
@@ -49,7 +49,6 @@ void
     msg->id.publisher_id = 0;   // This will be assigned by coordinator
     msg->id.subscriber_id = 0;  // This will be assigned by coordinator
     msg->tlv_buffer_size = TLV_OVERHEAD_SIZE +  TLV_CODE_NAME_LEN;
-    msg->msg_size = msg->tlv_buffer_size;
     char *tlv_buffer = (char *)msg->msg;
     tlv_buffer_insert_tlv (tlv_buffer, TLV_CODE_NAME, TLV_CODE_NAME_LEN, entity_name);
     int rc = pub_sub_dispatch_cmsg (sock_fd, msg);
@@ -73,7 +72,6 @@ void
     msg->id.publisher_id = pub_sub_id;
     msg->id.subscriber_id = pub_sub_id;
     msg->tlv_buffer_size = 0;
-    msg->msg_size = msg->tlv_buffer_size;
     
     int rc = pub_sub_dispatch_cmsg (sock_fd, msg);
     if (rc < 0) {
@@ -95,8 +93,7 @@ publisher_publish (int sock_fd, uint32_t pub_id, uint32_t msg_code) {
     msg->id.publisher_id = pub_id; // This will be assigned by coordinator
     msg->id.subscriber_id = pub_id;
     msg->tlv_buffer_size = 0;
-    msg->msg_size = 0;
-   
+
     int rc = pub_sub_dispatch_cmsg (sock_fd, msg);
     if (rc < 0) {
         printf ("Client : Error : Send Failed, errno = %d\n", errno);
@@ -117,7 +114,6 @@ publisher_unpublish (int sock_fd, uint32_t pub_id, uint32_t msg_code) {
     msg->id.publisher_id = pub_id; // This will be assigned by coordinator
     msg->id.subscriber_id = pub_id;
     msg->tlv_buffer_size = 0;
-    msg->msg_size = 0;
 
     int rc = pub_sub_dispatch_cmsg (sock_fd, msg);
     if (rc < 0) {
@@ -139,7 +135,6 @@ subscriber_subscribe (int sock_fd, uint32_t sub_id, uint32_t msg_id) {
     msg->id.publisher_id = sub_id; // This will be assigned by coordinator
     msg->id.subscriber_id = sub_id;
     msg->tlv_buffer_size = 0;
-    msg->msg_size = 0;
 
     int rc = pub_sub_dispatch_cmsg (sock_fd, msg);
     if (rc < 0) {
@@ -161,7 +156,6 @@ subscriber_unsubscribe (int sock_fd, uint32_t sub_id, uint32_t msg_id) {
     msg->id.publisher_id = sub_id; // This will be assigned by coordinator
     msg->id.subscriber_id = sub_id;
     msg->tlv_buffer_size = 0;
-    msg->msg_size = 0;
     int rc = pub_sub_dispatch_cmsg (sock_fd, msg);
     if (rc < 0) {
         printf ("Client : Error : Send Failed, errno = %d\n", errno);
@@ -224,7 +218,7 @@ subscriber_subscribe_ipc_channel (int sock_fd,
     server_addr.sin_addr.s_addr = htonl(COORD_IP_ADDR);
 
     int rc = sendto(sock_fd, (char *)subscriber_ipc_msg, 
-                            sizeof(*subscriber_ipc_msg) + subscriber_ipc_msg->msg_size, 
+                            sizeof(*subscriber_ipc_msg) + subscriber_ipc_msg->tlv_buffer_size, 
                             0, (struct sockaddr *)&server_addr, sizeof(struct sockaddr));
 
     if (rc < 0) {

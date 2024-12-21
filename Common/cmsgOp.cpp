@@ -36,7 +36,6 @@ cmsg_data_prepare (msg_type_t msg_type,
     reply_msg->sub_msg_type = sub_msg_type;
     reply_msg->msg_code = msg_code;
     reply_msg->tlv_buffer_size = tlv_buffer_size;
-    reply_msg->msg_size = tlv_buffer_size;
 
     char *tlv_buffer = (char *)reply_msg->msg;
 
@@ -66,7 +65,6 @@ cmsg_data_prepare2 (msg_type_t msg_type,
     msg->sub_msg_type = sub_msg_type;
     msg->msg_code = msg_code;
     msg->tlv_buffer_size = trailing_space;
-    msg->msg_size = trailing_space;
     return msg;
 }
 
@@ -80,7 +78,6 @@ cmsg_debug_print (cmsg_t *cmsg) {
     printf ("Publisher ID : %u | ", cmsg->id.publisher_id);
     printf ("Subscriber ID : %u | ", cmsg->id.subscriber_id);
     printf ("TLV Buffer Size : %u | ", cmsg->tlv_buffer_size);
-    printf ("Msg Size : %u\n", cmsg->msg_size);
 
     char *tlv_buffer = (char *)cmsg->msg;
     size_t tlv_bufer_size = cmsg->tlv_buffer_size;
