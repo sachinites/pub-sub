@@ -10,7 +10,7 @@
 static char buffer[1024];
 
 void *
-sub_example (void *_ipc_struct) {
+sub_skt_example (void *_ipc_struct) {
     
     int sock_fd;
 

@@ -5,7 +5,7 @@
 
 extern void coordinator_main();
 extern void *pub_example (void *);
-extern void *sub_example (void *);
+extern void *sub_skt_example (void *);
 
 int 
 main (int argc, char **argv) {
@@ -31,7 +31,7 @@ main (int argc, char **argv) {
     static ipc_struct_t ipc_struct_sub1;
     ipc_struct_sub1.netskt.ip_addr =   2130706433 ; //127.0.0.1 
     ipc_struct_sub1.netskt.port = 50001;
-    pthread_create (&sub_thread1, &attr2,  sub_example, (void *)&ipc_struct_sub1);
+    pthread_create (&sub_thread1, &attr2,  sub_skt_example, (void *)&ipc_struct_sub1);
     sleep(1);
 
     /* Start the Subscriber Thread */
@@ -41,7 +41,7 @@ main (int argc, char **argv) {
     static ipc_struct_t ipc_struct_sub2;
     ipc_struct_sub2.netskt.ip_addr =   2130706433 ; //127.0.0.1 
     ipc_struct_sub2.netskt.port = 50002;
-    pthread_create (&sub_thread1, &attr3,  sub_example, (void *)&ipc_struct_sub2);    
+    pthread_create (&sub_thread1, &attr3,  sub_skt_example, (void *)&ipc_struct_sub2);    
     sleep(1);
 
     pthread_exit (0);

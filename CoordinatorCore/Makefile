@@ -35,14 +35,14 @@ ${TARGET3}:main.o ${COORDINATOR_OBJS}
 ${TARGET4}:../clientlib/pub_main.o ../clientlib/pub_example.o ../clientlib/client.o ../Common/cmsgOp.o
 	${CC} -g ../clientlib/pub_main.o ../clientlib/pub_example.o ../clientlib/client.o ../Common/cmsgOp.o -o ${TARGET4} ${USERLIBS}
 
-${TARGET5}:../clientlib/sub_main.o ../clientlib/sub_example.o ../clientlib/client.o ../Common/cmsgOp.o
-	${CC} -g ../clientlib/sub_main.o ../clientlib/sub_example.o ../clientlib/client.o ../Common/cmsgOp.o -o ${TARGET5} ${USERLIBS}
+${TARGET5}:../clientlib/sub_main.o ../clientlib/sub_skt_example.o ../clientlib/client.o ../Common/cmsgOp.o
+	${CC} -g ../clientlib/sub_main.o ../clientlib/sub_skt_example.o ../clientlib/client.o ../Common/cmsgOp.o -o ${TARGET5} ${USERLIBS}
 
-${TARGET6}:../MasterProcess.o ../Common/cmsgOp.o ../clientlib/pub_example.o ../clientlib/sub_example.o coord-main.o
-	${CC} -g ../MasterProcess.o ../clientlib/pub_example.o ../clientlib/sub_example.o ../Common/cmsgOp.o coord-main.o -o ${TARGET6} ${STLIBS} ${USERLIBS}
+${TARGET6}:../MasterProcess.o ../Common/cmsgOp.o ../clientlib/pub_example.o ../clientlib/sub_skt_example.o coord-main.o
+	${CC} -g ../MasterProcess.o ../clientlib/pub_example.o ../clientlib/sub_skt_example.o ../Common/cmsgOp.o coord-main.o -o ${TARGET6} ${STLIBS} ${USERLIBS}
 
-${TARGET6}:../MasterProcess.o ${COORDINATOR_OBJS} ../clientlib/pub_example.o ../clientlib/sub_example.o
-	${CC} -g ../MasterProcess.o ${COORDINATOR_OBJS} ../clientlib/pub_example.o ../clientlib/sub_example.o -o ${TARGET6} ${STLIBS} ${USERLIBS}
+${TARGET6}:../MasterProcess.o ${COORDINATOR_OBJS} ../clientlib/pub_example.o ../clientlib/sub_skt_example.o
+	${CC} -g ../MasterProcess.o ${COORDINATOR_OBJS} ../clientlib/pub_example.o ../clientlib/sub_skt_example.o -o ${TARGET6} ${STLIBS} ${USERLIBS}
 
 main.o:main.cpp
 	${CC} ${CFLAGS} main.cpp -o main.o
@@ -71,8 +71,8 @@ CoordDistribution.o:CoordDistribution.cpp
 ../clientlib/pub_example.o:../clientlib/pub_example.cpp
 	${CC} ${CFLAGS} ../clientlib/pub_example.cpp -o ../clientlib/pub_example.o
 
-../clientlib/sub_example.o:../clientlib/sub_example.cpp
-	${CC} ${CFLAGS} ../clientlib/sub_example.cpp -o ../clientlib/sub_example.o
+../clientlib/sub_skt_example.o:../clientlib/sub_skt_example.cpp
+	${CC} ${CFLAGS} ../clientlib/sub_skt_example.cpp -o ../clientlib/sub_skt_example.o
 
 ./clientlib/pub_main.o:../clientlib/pub_main.cpp
 	${CC} ${CFLAGS} ../clientlib/pub_main.cpp -o ../clientlib/pub_main.o
