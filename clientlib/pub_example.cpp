@@ -7,22 +7,22 @@
 #include <arpa/inet.h>
 #include "client.h"
 
-int 
-main (int argc, char **argv) {
+void
+pub_example (int argc, char **argv) {
     
     int sock_fd;
 
     if (argc != 3) {
         printf ("Usage : %s <Self IP Address> <Self UDP Port Number>\n", 
             argv[0]);
-        return -1;
+        return;
     }
 
     sock_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
     if (sock_fd == -1) {
         printf ("Error : Socket Creation Failed\n");
-        return -1;
+        return;
     }
 
     struct sockaddr_in self_addr;
@@ -90,6 +90,4 @@ main (int argc, char **argv) {
     coordinator_unregister (sock_fd, pub_id, PUB_TO_COORD);
     
     close (sock_fd);
-
-    return 0;
 }
