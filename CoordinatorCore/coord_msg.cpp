@@ -59,14 +59,14 @@ coordinator_process_publisher_msg (cmsg_t *msg, size_t bytes_read) {
 
             if (!pub_name) {
                 printf ("Coordinator : Error : Publisher Registration : Publisher Name TLV Missing\n");
-                return cord_prepare_msg (COORD_TO_PUB, 
+                return cmsg_data_prepare (COORD_TO_PUB, 
                     SUB_MSG_ERROR, 
                     ERROR_TLV_MISSING, 1, false, TLV_CODE_NAME);
             }
 
             publisher_db_entry_t* PubEntry = publisher_db_create (coord_generate_id() ,  pub_name);
 
-            cmsg_t *reply_msg =  cord_prepare_msg (
+            cmsg_t *reply_msg =  cmsg_data_prepare (
                         COORD_TO_PUB, 
                         SUB_MSG_ID_ALLOC_SUCCESS, 
                         0, false, 0);
@@ -136,13 +136,13 @@ coordinator_process_subscriber_msg (cmsg_t *msg, size_t bytes_read) {
 
             if (!sub_name) {
                 printf ("Coordinator : Error : Subscriber Registration : Subscriber Name TLV Missing\n");
-                return cord_prepare_msg (COORD_TO_SUBS, 
+                return cmsg_data_prepare (COORD_TO_SUBS, 
                     SUB_MSG_ERROR, 
                     ERROR_TLV_MISSING, 1, false, TLV_CODE_NAME);
             }
 
             std::shared_ptr<subscriber_db_entry_t> SubEntry =  subscriber_db_create (coord_generate_id() ,  sub_name);
-            cmsg_t *reply_msg =  cord_prepare_msg (
+            cmsg_t *reply_msg =  cmsg_data_prepare (
                         COORD_TO_SUBS, 
                         SUB_MSG_ID_ALLOC_SUCCESS, 
                         0, false, 0);

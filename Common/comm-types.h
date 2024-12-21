@@ -112,19 +112,26 @@ typedef struct cmsg_ {
 #define TLV_IPC_NET_UDP_SKT 4
 #define TLV_IPC_NET_SKT_LEN 6 // 4B of IP Address, 2B of port number
 
+#define TLV_DATA_128    7
+#define TLV_DATA_256    8
+
 static int 
 tlv_data_len (int tlv_code_point) {
 
     switch (tlv_code_point) {
 
         case TLV_CODE_NAME:
-            return TLV_CODE_NAME_LEN;
+            return TLV_CODE_NAME_LEN; 
         case TLV_IPC_TYPE_MSGQ:
-            return 2;
+            return 64;
         case TLV_IPC_TYPE_UXSKT:
-            return 2;
+            return 64;
         case TLV_IPC_NET_UDP_SKT:
             return TLV_IPC_NET_SKT_LEN;
+        case TLV_DATA_128:
+            return 128;
+        case TLV_DATA_256:
+            return 256;
     }
     return 0;
 }

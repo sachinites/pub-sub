@@ -5,7 +5,7 @@
 #include <vector>
 #include <cstring>
 #include <memory>
-#include "CoordIpc.h"
+#include "../Common/ipc_struct.h"
 #include "Config.h"
 
 

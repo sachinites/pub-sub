@@ -14,7 +14,7 @@
 #include "CoordDb.h"
 #include "../Common/comm-types.h"
 #include "../Libs/PostgresLibpq/postgresLib.h"
-#include "CoordIpc.h"
+#include "../Common/ipc_struct.h"
 
 extern PGconn* gconn;
 

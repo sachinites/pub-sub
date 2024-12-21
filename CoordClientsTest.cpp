@@ -5,110 +5,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
-#include "Libs/tlv.h"
-#include "Common/comm-types.h"
-#include "Common/cmsgOp.h"
-
-static void 
- coordinator_register (int sock_fd, char *entity_name, 
-                                    msg_type_t msg_type) {
-
-    cmsg_t *msg = (cmsg_t *)calloc (1, sizeof (*msg) + TLV_OVERHEAD_SIZE + TLV_CODE_NAME_LEN);
-    msg->msg_id =0; // This will be assigned by coordinator
-    msg->msg_type = msg_type;
-    msg->sub_msg_type = SUB_MSG_REGISTER;
-    msg->id.publisher_id = 0; // This will be assigned by coordinator
-    msg->id.subscriber_id = 0; // This will be assigned by coordinator
-    msg->tlv_buffer_size = TLV_OVERHEAD_SIZE +  TLV_CODE_NAME_LEN;
-    msg->msg_size = msg->tlv_buffer_size;
-    char *tlv_buffer = (char *)msg->msg;
-    tlv_buffer_insert_tlv (tlv_buffer, TLV_CODE_NAME, TLV_CODE_NAME_LEN, entity_name);
-    struct sockaddr_in server_addr;
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(COORD_UDP_PORT);
-    server_addr.sin_addr.s_addr = htonl(COORD_IP_ADDR);
-    cmsg_debug_print (msg);
-    int rc = sendto (sock_fd, (char *)msg, sizeof (*msg) + msg->msg_size, 0, 
-        (struct sockaddr *)&server_addr, sizeof (struct sockaddr));
-
-    if (rc < 0) {
-        printf ("Client : Error : Send Failed, errno = %d\n", errno);
-    }
-    free(msg);
- }
-
-static void 
- coordinator_unregister (int sock_fd, uint32_t entity_id,
-                                    msg_type_t msg_type) {
-
-    cmsg_t *msg = (cmsg_t *)calloc (1, sizeof (*msg));
-    msg->msg_id =0; // This will be assigned by coordinator
-    msg->msg_type = msg_type;
-    msg->sub_msg_type = SUB_MSG_UNREGISTER;
-    msg->id.publisher_id = entity_id;
-    msg->id.subscriber_id = entity_id;
-    msg->tlv_buffer_size = 0;
-    msg->msg_size = 0;
-    struct sockaddr_in server_addr;
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(COORD_UDP_PORT);
-    server_addr.sin_addr.s_addr = htonl(COORD_IP_ADDR);
-    cmsg_debug_print (msg);
-    int rc = sendto (sock_fd, (char *)msg, sizeof (*msg), 0, 
-        (struct sockaddr *)&server_addr, sizeof (struct sockaddr));
-    if (rc < 0) {
-        printf("Client : Error : Send Failed, errno = %d\n", errno);
-    }
-    free(msg);
-}
-
-static void 
-subscriber_subscribe (int sock_fd, uint32_t sub_id, uint32_t msg_id) {
-
-    cmsg_t *msg = (cmsg_t *)calloc (1, sizeof (*msg));
-    msg->msg_id =0; // This will be assigned by coordinator
-    msg->msg_type = SUBS_TO_COORD;
-    msg->sub_msg_type = SUB_MSG_ADD;
-    msg->msg_code = msg_id;
-    msg->id.publisher_id = sub_id; // This will be assigned by coordinator
-    msg->id.subscriber_id = sub_id;
-    msg->tlv_buffer_size = 0;
-    msg->msg_size = 0;
-    struct sockaddr_in server_addr;
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(COORD_UDP_PORT);
-    server_addr.sin_addr.s_addr = htonl(COORD_IP_ADDR);
-    int rc = sendto (sock_fd, (char *)msg, sizeof (*msg), 0, 
-        (struct sockaddr *)&server_addr, sizeof (struct sockaddr));
-    if (rc < 0) {
-        printf("Client : Error : Send Failed, errno = %d\n", errno);
-    }
-    free(msg);
-}
-
-static void 
-publisher_publish (int sock_fd, uint32_t pub_id, uint32_t msg_code) {
-
-    cmsg_t *msg = (cmsg_t *)calloc (1, sizeof (*msg));
-    msg->msg_id =0; // This will be assigned by coordinator
-    msg->msg_type = PUB_TO_COORD;
-    msg->sub_msg_type = SUB_MSG_ADD;
-    msg->msg_code = msg_code;
-    msg->id.publisher_id = pub_id; // This will be assigned by coordinator
-    msg->id.subscriber_id = pub_id;
-    msg->tlv_buffer_size = 0;
-    msg->msg_size = 0;
-    struct sockaddr_in server_addr;
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(COORD_UDP_PORT);
-    server_addr.sin_addr.s_addr = htonl(COORD_IP_ADDR);
-    int rc = sendto (sock_fd, (char *)msg, sizeof (*msg), 0, 
-        (struct sockaddr *)&server_addr, sizeof (struct sockaddr));
-    if (rc < 0) {
-        printf("Client : Error : Send Failed, errno = %d\n", errno);
-    }
-    free(msg);
-}
+#include "../clientlib/client.h"
 
 int 
 main (int arhc, char **argv) {
@@ -161,7 +58,7 @@ main (int arhc, char **argv) {
 
 
     /* Now let subscriber inform how it wants to recv the msg from coord*/
-    cmsg_t *subscriber_ipc_msg = cord_prepare_msg (
+    cmsg_t *subscriber_ipc_msg = cmsg_data_prepare (
                                                         SUBS_TO_COORD, 
                                                         SUB_MSG_IPC_CHANNEL_ADD,
                                                         0, /* Not required */
@@ -186,7 +83,7 @@ main (int arhc, char **argv) {
                             0, (struct sockaddr *)&server_addr, sizeof(struct sockaddr));
 
     /* Now let publisher send the data message */
-    cmsg_t *data_cmsg = cord_prepare_msg (
+    cmsg_t *data_cmsg = cmsg_data_prepare (
                                         PUB_TO_COORD, 
                                         SUB_MSG_DATA, 
                                         100, 
@@ -218,8 +115,6 @@ main (int arhc, char **argv) {
     coordinator_register (sock_fd, "Sub3", SUBS_TO_COORD);
 #endif 
 
-
-
     while (1) {
         memset (&cmsg, 0, sizeof (cmsg));
         int rc = recvfrom (sock_fd, (char *)&cmsg, sizeof (cmsg), 
@@ -239,7 +134,7 @@ main (int arhc, char **argv) {
             //subscriber_subscribe  (sock_fd, cmsg.id.subscriber_id, 101);
             //subscriber_subscribe  (sock_fd, cmsg.id.subscriber_id, 102);
 
-            cmsg_t *subscriber_ipc_msg = cord_prepare_msg (
+            cmsg_t *subscriber_ipc_msg = cmsg_data_prepare (
                                                         SUBS_TO_COORD, 
                                                         SUB_MSG_IPC_CHANNEL_ADD,
                                                         0, /* Not required */

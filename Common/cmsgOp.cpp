@@ -7,7 +7,7 @@
 #include "cmsgOp.h"
 
 cmsg_t *
-cord_prepare_msg (msg_type_t msg_type, 
+cmsg_data_prepare (msg_type_t msg_type, 
                         sub_msg_type_t sub_msg_type, 
                         uint32_t msg_code, 
                         bool alloc_tlv_value_buffers,
@@ -54,8 +54,21 @@ cord_prepare_msg (msg_type_t msg_type,
     return reply_msg;
 }
 
-static void 
-gdb_break() {}
+cmsg_t *
+cmsg_data_prepare2 (msg_type_t msg_type, 
+                        sub_msg_type_t sub_msg_type, 
+                        uint32_t msg_code, 
+                        int trailing_space) {
+
+    cmsg_t *msg = (cmsg_t *)calloc (1, sizeof (cmsg_t) + trailing_space);
+    msg->msg_id = 0;
+    msg->msg_type = msg_type;
+    msg->sub_msg_type = sub_msg_type;
+    msg->msg_code = msg_code;
+    msg->tlv_buffer_size = trailing_space;
+    msg->msg_size = trailing_space;
+    return msg;
+}
 
 void 
 cmsg_debug_print (cmsg_t *cmsg) {
@@ -79,7 +92,6 @@ cmsg_debug_print (cmsg_t *cmsg) {
         printf ("TLV Type : %u | ", tlv_type);
         printf ("TLV Length : %u | ", tlv_len);
         printf ("TLV Value : %s\n", tlv_value);
-        gdb_break();
 
     } ITERATE_TLV_END;
 
