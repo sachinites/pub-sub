@@ -267,7 +267,7 @@ coordinator_recv_msg_listen() {
 
         FD_ZERO(&readfds);
         FD_SET(sock_fd, &readfds);
-        FD_SET(STDIN_FILENO, &readfds);
+        //FD_SET(STDIN_FILENO, &readfds);
 
         select(sock_fd + 1, &readfds, NULL, NULL, NULL);
 

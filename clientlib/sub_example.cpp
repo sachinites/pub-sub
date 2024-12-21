@@ -9,30 +9,24 @@
 
 static char buffer[1024];
 
-void
-sub_example (int argc, char **argv) {
+void *
+sub_example (void *_ipc_struct) {
     
     int sock_fd;
 
-    if (argc != 3) {
-        printf ("Usage : %s <Self IP Address> <Self UDP Port Number>\n", 
-            argv[0]);
-        return;
-    }
+    ipc_struct_t *ipc_struct = (ipc_struct_t *)_ipc_struct;
 
     sock_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
     if (sock_fd == -1) {
         printf ("Error : Socket Creation Failed\n");
-        return;
+        return 0;
     }
 
     struct sockaddr_in self_addr;
     self_addr.sin_family = AF_INET;
-    self_addr.sin_port = htons(atoi(argv[2]));
-    
-    inet_pton(AF_INET, argv[1], &self_addr.sin_addr);
-    //self_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    self_addr.sin_port = htons(ipc_struct->netskt.port);
+    self_addr.sin_addr.s_addr = htonl(ipc_struct->netskt.ip_addr);
 
     if (bind(sock_fd, (struct sockaddr *)&self_addr, sizeof(struct sockaddr)) == -1)
     {
@@ -57,10 +51,7 @@ sub_example (int argc, char **argv) {
     subscriber_subscribe  (sock_fd, sub_id, 104);
 
     /* Report the channel of communication */
-    ipc_struct_t ipc_struct;
-    ipc_struct.netskt.ip_addr = htonl(self_addr.sin_addr.s_addr);  // 127.0.0.1
-    ipc_struct.netskt.port = htons(self_addr.sin_port);
-    subscriber_subscribe_ipc_channel (sock_fd, sub_id, IPC_TYPE_NETSKT, &ipc_struct);
+    subscriber_subscribe_ipc_channel (sock_fd, sub_id, IPC_TYPE_NETSKT, ipc_struct);
 
     while (1) {
         
@@ -71,4 +62,6 @@ sub_example (int argc, char **argv) {
     }
 
     close (sock_fd);
+
+    return 0;
 }

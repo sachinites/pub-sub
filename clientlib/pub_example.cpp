@@ -7,30 +7,27 @@
 #include <arpa/inet.h>
 #include "client.h"
 
-void
-pub_example (int argc, char **argv) {
+void *
+pub_example (void *_ipc_struct) {
     
     int sock_fd;
 
-    if (argc != 3) {
-        printf ("Usage : %s <Self IP Address> <Self UDP Port Number>\n", 
-            argv[0]);
-        return;
-    }
+    ipc_struct_t *ipc_struct = (ipc_struct_t *)_ipc_struct;
+
+    uint16_t port_no = ipc_struct->netskt.port;
+    uint32_t ip_addr = ipc_struct->netskt.ip_addr;
 
     sock_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
     if (sock_fd == -1) {
         printf ("Error : Socket Creation Failed\n");
-        return;
+        return 0;
     }
 
     struct sockaddr_in self_addr;
     self_addr.sin_family = AF_INET;
-    self_addr.sin_port = htons(atoi(argv[2]));
-    
-    inet_pton(AF_INET, argv[1], &self_addr.sin_addr);
-    //self_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    self_addr.sin_port = htons(port_no);
+    self_addr.sin_addr.s_addr = htonl(ip_addr);
 
     if (bind(sock_fd, (struct sockaddr *)&self_addr, sizeof(struct sockaddr)) == -1)
     {
@@ -90,4 +87,5 @@ pub_example (int argc, char **argv) {
     coordinator_unregister (sock_fd, pub_id, PUB_TO_COORD);
     
     close (sock_fd);
+    return 0;
 }
