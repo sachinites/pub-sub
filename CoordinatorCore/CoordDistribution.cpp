@@ -229,25 +229,33 @@ coordinator_dispatch (std::shared_ptr<subscriber_db_entry_t> SubEntry, cmsg_t *c
         }
         break;
 
-        
         case IPC_TYPE_MSGQ:
         {
-            printf ("Coordinator : Dispatching message to subscriber [%s, %u] over MQUEUE\n", SubEntry->sub_name, SubEntry->subscriber_id);
+            printf ("Coordinator : Dispatching message to subscriber [%s, %u] over MQUEUE\n", 
+                SubEntry->sub_name, SubEntry->subscriber_id);
             break;
         }        
         case IPC_TYPE_UXSKT:
         {
-            printf ("Coordinator : Dispatching message to subscriber [%s, %u] over UXSKT\n", SubEntry->sub_name, SubEntry->subscriber_id);
+            printf ("Coordinator : Dispatching message to subscriber [%s, %u] over UXSKT\n", 
+                SubEntry->sub_name, SubEntry->subscriber_id);
             break;
         }        
         case IPC_TYPE_SHM:
         {
-            printf ("Coordinator : Dispatching message to subscriber [%s, %u] over SHM\n", SubEntry->sub_name, SubEntry->subscriber_id);
+            printf ("Coordinator : Dispatching message to subscriber [%s, %u] over SHM\n", 
+                SubEntry->sub_name, SubEntry->subscriber_id);
             break;
         }
         case IPC_TYPE_CBK:
         {
-            printf ("Coordinator : Dispatching message to subscriber [%s, %u] over CBK\n", SubEntry->sub_name, SubEntry->subscriber_id);
+            printf ("Coordinator : Dispatching message to subscriber [%s, %u] over CBK\n", 
+                SubEntry->sub_name, SubEntry->subscriber_id);
+
+            if (SubEntry->ipc_struct.cbk.cbk) {
+                cmsg_reference (cmsg);
+                SubEntry->ipc_struct.cbk.cbk (cmsg);
+            }
             break;
         }
         default:

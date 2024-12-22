@@ -1,16 +1,16 @@
 CC=g++ -std=c++20
-CFLAGS=-g -c
+CFLAGS=-g -c 
 
 TARGET1=../clientlib/libclient.a 
 TARGET2=libcoord.a
 TARGET3=coordinator.exe
 TARGET4=../clientlib/pub_main.exe 
-TARGET5=../clientlib/sub_main.exe 
+TARGET5=../clientlib/sub_skt_main.exe 
 TARGET6=../MasterProcess.exe
 
 TARGET:${TARGET1} ${TARGET2} ${TARGET3} ${TARGET4} ${TARGET5} ${TARGET6} 
 
-COORDINATOR_OBJS=coord-main.o \
+COORDINATOR_OBJS=coord_start.o \
 										  coord_msg.o \
 										  coordDb.o \
 										  CoordDistribution.o \
@@ -35,20 +35,20 @@ ${TARGET3}:main.o ${COORDINATOR_OBJS}
 ${TARGET4}:../clientlib/pub_main.o ../clientlib/pub_example.o ../clientlib/client.o ../Common/cmsgOp.o
 	${CC} -g ../clientlib/pub_main.o ../clientlib/pub_example.o ../clientlib/client.o ../Common/cmsgOp.o -o ${TARGET4} ${USERLIBS}
 
-${TARGET5}:../clientlib/sub_main.o ../clientlib/sub_skt_example.o ../clientlib/client.o ../Common/cmsgOp.o
-	${CC} -g ../clientlib/sub_main.o ../clientlib/sub_skt_example.o ../clientlib/client.o ../Common/cmsgOp.o -o ${TARGET5} ${USERLIBS}
+${TARGET5}:../clientlib/sub_skt_main.o ../clientlib/sub_skt_example.o ../clientlib/client.o ../Common/cmsgOp.o
+	${CC} -g ../clientlib/sub_skt_main.o ../clientlib/sub_skt_example.o ../clientlib/client.o ../Common/cmsgOp.o -o ${TARGET5} ${USERLIBS}
 
-${TARGET6}:../MasterProcess.o ../Common/cmsgOp.o ../clientlib/pub_example.o ../clientlib/sub_skt_example.o coord-main.o
-	${CC} -g ../MasterProcess.o ../clientlib/pub_example.o ../clientlib/sub_skt_example.o ../Common/cmsgOp.o coord-main.o -o ${TARGET6} ${STLIBS} ${USERLIBS}
+${TARGET6}:../MasterProcess.o ../Common/cmsgOp.o ../clientlib/pub_example.o ../clientlib/sub_skt_example.o coord_start.o
+	${CC} -g ../MasterProcess.o ../clientlib/pub_example.o ../clientlib/sub_skt_example.o ../Common/cmsgOp.o coord_start.o -o ${TARGET6} ${STLIBS} ${USERLIBS}
 
-${TARGET6}:../MasterProcess.o ${COORDINATOR_OBJS} ../clientlib/pub_example.o ../clientlib/sub_skt_example.o
-	${CC} -g ../MasterProcess.o ${COORDINATOR_OBJS} ../clientlib/pub_example.o ../clientlib/sub_skt_example.o -o ${TARGET6} ${STLIBS} ${USERLIBS}
+${TARGET6}:../MasterProcess.o ${COORDINATOR_OBJS} ../clientlib/pub_example.o ../clientlib/sub_skt_example.o ../clientlib/sub_cbk_example.o
+	${CC} -g ../MasterProcess.o ${COORDINATOR_OBJS} ../clientlib/pub_example.o ../clientlib/sub_skt_example.o ../clientlib/sub_cbk_example.o -o ${TARGET6} ${STLIBS} ${USERLIBS}
 
 main.o:main.cpp
 	${CC} ${CFLAGS} main.cpp -o main.o
 
-coord-main.o:coord-main.cpp
-	${CC} ${CFLAGS} coord-main.cpp -o coord-main.o
+coord_start.o:coord_start.cpp
+	${CC} ${CFLAGS} coord_start.cpp -o coord_start.o
 
 coord_msg.o:coord_msg.cpp
 	${CC} ${CFLAGS} coord_msg.cpp -o coord_msg.o
@@ -77,8 +77,8 @@ CoordDistribution.o:CoordDistribution.cpp
 ./clientlib/pub_main.o:../clientlib/pub_main.cpp
 	${CC} ${CFLAGS} ../clientlib/pub_main.cpp -o ../clientlib/pub_main.o
 
-./clientlib/sub_main.o:../clientlib/sub_main.cpp
-	${CC} ${CFLAGS} ../clientlib/sub_main.cpp -o ../clientlib/sub_main.o
+./clientlib/sub_skt_main.o:../clientlib/sub_skt_main.cpp
+	${CC} ${CFLAGS} ../clientlib/sub_skt_main.cpp -o ../clientlib/sub_skt_main.o
 
 ../MasterProcess.o:../MasterProcess.cpp
 	${CC} ${CFLAGS} ../MasterProcess.cpp -o ../MasterProcess.o

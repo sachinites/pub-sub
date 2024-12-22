@@ -58,6 +58,7 @@ coordinator_process_publisher_msg (cmsg_t *msg, size_t bytes_read) {
                                         &tlv_data_len);
 
             if (!pub_name) {
+                
                 printf ("Coordinator : Error : Publisher Registration : Publisher Name TLV Missing\n");
                 return cmsg_data_prepare (COORD_TO_PUB, 
                     SUB_MSG_ERROR, 
@@ -71,13 +72,16 @@ coordinator_process_publisher_msg (cmsg_t *msg, size_t bytes_read) {
                         SUB_MSG_ID_ALLOC_SUCCESS, 
                         0, false, 0);
             reply_msg->id.publisher_id = PubEntry->publisher_id;
+            printf ("Coordinator : New Publisher Registered with Pub ID %u\n", PubEntry->publisher_id);
             return reply_msg;
         }
         break;
+
         case SUB_MSG_UNREGISTER:
         {
             /* Existing Publisher Withdrawl*/
             publisher_db_delete (msg->id.publisher_id);
+            printf ("Coordinator : Publisher id %u Un-Registered\n", msg->id.publisher_id);
         }
         break;
         case SUB_MSG_REQUEST_ACK:

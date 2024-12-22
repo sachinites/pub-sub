@@ -146,6 +146,8 @@ publisher_publish_msg (uint32_t pub_id,
         if (PubEntry->published_msg_ids[i]) continue;
         PubEntry->published_msg_ids[i] = published_msg_id;
 
+        printf ("Coordinator : Publisher %s published message %u Successfully\n", PubEntry->pub_name, published_msg_id);
+
         /* Update PUB-DB table with new publish msg ID*/
         char sql_query[256];
         snprintf (sql_query, sizeof(sql_query), 
@@ -274,7 +276,6 @@ subscriber_db_create (uint32_t sub_id,
         return SubEntry;
 
     SubEntry = std::make_shared<subscriber_db_entry_t>();
-    SubEntry->clear();
     strncpy(SubEntry->sub_name, sub_name, sizeof(SubEntry->sub_name));
     SubEntry->subscriber_id = sub_id;
     CORDCRUDOperations<uint32_t, std::shared_ptr<subscriber_db_entry_t>>::
@@ -353,6 +354,9 @@ subscriber_subscribe_msg (uint32_t sub_id,
 
         SubEntry->subscriber_msg_ids[i] = msg_id;
 
+        printf ("Coordinator : Subscriber [%s,%u] Subscribed to msg %u Successfully\n",
+            SubEntry->sub_name, SubEntry->subscriber_id, msg_id);   
+
         /* Update SUB-DB table with new subscribed msg ID*/
         char sql_query[256];
         snprintf (sql_query, sizeof(sql_query), 
@@ -393,8 +397,10 @@ subscriber_unsubscribe_msg (uint32_t sub_id,
 
     SubEntry->subscriber_msg_ids[i] = 0;
 
-    /* Update SUB-DB table with new subscribed msg ID*/
+    printf ("Coordinator : Subscriber [%s,%u] Unsubscribed from msg %u Successfully\n",
+        SubEntry->sub_name, SubEntry->subscriber_id, msg_id);
 
+    /* Update SUB-DB table with new subscribed msg ID*/
     char sql_query[256];
     snprintf (sql_query, sizeof(sql_query), 
               "UPDATE %s.%s SET SUBSCRIBED_MSG_IDS[%d] = %u WHERE SUBID = %u;",
@@ -484,6 +490,35 @@ coordinator_process_subscriber_ipc_subscription (
                 return true;
             }
             break;
+
+            case TLV_IPC_TYPE_CBK:
+            {
+                uintptr_t fn_ptr = *(uintptr_t *)tlv_value;
+                SubEntry->ipc_type = IPC_TYPE_CBK;
+                SubEntry->ipc_struct.cbk.cbk = (pub_sub_cbk_t )fn_ptr;
+                printf("Coordinator : Subscriber [%s,%u] IPC Channel Add : Callback Function %p\n", 
+                    SubEntry->sub_name, SubEntry->subscriber_id, SubEntry->ipc_struct.cbk.cbk);
+
+                /* Now update SUB-DB*/
+                char sql_query[256];
+                snprintf (sql_query, sizeof(sql_query), 
+                          "UPDATE %s.%s SET IPC_DATA = ROW(%u, %u, %u, %u, %s, %s)::%s.ipc_struct"
+                          " WHERE SUBID = %u;",
+                            COORD_SCHEMA_NAME, SUB_TABLE_NAME,
+                          SubEntry->ipc_type, 0, 0, 0, "''", "''", COORD_SCHEMA_NAME, sub_id);
+                
+                printf ("Executing SQL Query : %s\n", sql_query);
+
+                PGresult *res = PQexec(gconn, sql_query);
+                if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+                    printf("Coordinator : Error: Failed to update SUB-DB table with new IPC Channel\n");
+                    PQclear(res);
+                    return false;
+                }
+                PQclear(res);
+                return true;
+            }
+
             default:
                 printf("Coordinator : Error: Unknown TLV Type %u in Subscriber IPC Channel TLV\n", tlv_type);
                 return false;
@@ -504,7 +539,6 @@ pub_sub_db_create (uint32_t msg_id,
     if (!PubSubEntry) {
 
         PubSubEntry = new pub_sub_db_entry_t;
-        PubSubEntry->clear();
         PubSubEntry->publish_msg_code = msg_id;
         PubSubEntry->subscribers.push_back(SubEntry);
         

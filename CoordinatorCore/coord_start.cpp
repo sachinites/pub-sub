@@ -281,17 +281,23 @@ coordinator_recv_msg_listen() {
                                       0, (struct sockaddr *)&client_addr, (socklen_t *)&addr_len);
 
                 if (bytes_read <= 0) break;
-
-                buffer[bytes_read] = '\0';
-
-                cmsg_t *msg = (cmsg_t *)buffer;
                 
-                cmsg_debug_print (msg);
+                buffer[bytes_read] = '\0';
+                cmsg_t *msg = (cmsg_t *)buffer;
 
                 switch (msg->msg_type)
                 {
                 case PUB_TO_COORD:
-                    printf("Received message from publisher\n");
+
+                    if (msg->id.publisher_id) {
+                        printf("Coordinator : Received message from publisher id = %u\n", msg->id.publisher_id);
+                    }
+                    else {
+                        printf("Coordinator : Received message from New publisher\n");
+                    }
+                    
+                    cmsg_debug_print (msg);
+
                     reply_msg = coordinator_process_publisher_msg(msg, bytes_read);
                     if (reply_msg)
                     {
@@ -300,7 +306,16 @@ coordinator_recv_msg_listen() {
                     }
                     break;
                 case SUBS_TO_COORD:
-                    printf("Received message from subscriber\n");
+
+                    if (msg->id.subscriber_id) {
+                        printf("Coordinator : Received message from Subscriber id = %u\n", msg->id.subscriber_id);
+                    }
+                    else {
+                        printf("Coordinator : Received message from New Subscriber\n");
+                    }
+
+                    cmsg_debug_print (msg);
+                    
                     reply_msg = coordinator_process_subscriber_msg(msg, bytes_read);
                     if (reply_msg)
                     {
@@ -309,7 +324,7 @@ coordinator_recv_msg_listen() {
                     }
                     break;
                 default:
-                    printf("Received unknown message type\n");
+                    printf("Coordinator : Received unknown message type\n");
                     break;
                 }
             }

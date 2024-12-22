@@ -45,7 +45,7 @@ typedef struct subscriber_db_entry_ {
     ipc_type_t ipc_type;
     ipc_struct_t ipc_struct;
 
-    void clear() {
+    subscriber_db_entry_() {
         sub_name[0] = '\0';
         subscriber_id = 0;
         memset (subscriber_msg_ids, 0, sizeof (subscriber_msg_ids));
@@ -70,8 +70,7 @@ typedef struct pub_sub_db_entry_ {
     uint32_t publish_msg_code; 
     std::vector <std::shared_ptr<subscriber_db_entry_t>> subscribers;
 
-    void clear () {
-
+    pub_sub_db_entry_() {
         publish_msg_code = 0;
         subscribers.clear();
     }

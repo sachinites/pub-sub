@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 
+typedef struct cmsg_  cmsg_t;
+typedef void (*pub_sub_cbk_t)(cmsg_t *);
+
 typedef enum ipc_type_ {
 
     IPC_TYPE_NONE,
@@ -37,6 +40,12 @@ typedef union ipc_struct_ {
         uint32_t UnixSktName[64];
 
     } uxskt;
+
+    struct {
+
+        pub_sub_cbk_t cbk;
+
+    } cbk;
 
     
 }  ipc_struct_t;

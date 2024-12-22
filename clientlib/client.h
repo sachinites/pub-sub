@@ -7,7 +7,7 @@
 
 void
 coordinator_register (int sock_fd, 
-                                    char *entity_name, 
+                                    const char *entity_name, 
                                     msg_type_t msg_type);
 
 void

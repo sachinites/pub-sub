@@ -9,7 +9,7 @@
 
 /* Returns the TLV to be used to encode the ipc channel */
 static int 
-ipv_type_to_tlv_type (ipc_type_t ipc_type) {
+ipc_type_to_tlv_type (ipc_type_t ipc_type) {
 
     switch (ipc_type) {
         case IPC_TYPE_MSGQ:
@@ -18,11 +18,14 @@ ipv_type_to_tlv_type (ipc_type_t ipc_type) {
             return TLV_IPC_TYPE_UXSKT;
         case IPC_TYPE_NETSKT:
             return TLV_IPC_NET_UDP_SKT;
+        case IPC_TYPE_CBK:
+            return TLV_IPC_TYPE_CBK;
         default:
             return 0;
     }
 }
 
+/* A function to send cmsg by pub/sub to coordinator*/
 int 
 pub_sub_dispatch_cmsg (
                                 int sock_fd, 
@@ -39,7 +42,7 @@ pub_sub_dispatch_cmsg (
 
 void 
  coordinator_register (int sock_fd, 
-                                    char *entity_name, 
+                                    const char *entity_name, 
                                     msg_type_t msg_type) {
 
     cmsg_t *msg = (cmsg_t *)calloc (1, sizeof (*msg) + TLV_OVERHEAD_SIZE + TLV_CODE_NAME_LEN);
@@ -50,7 +53,7 @@ void
     msg->id.subscriber_id = 0;  // This will be assigned by coordinator
     msg->tlv_buffer_size = TLV_OVERHEAD_SIZE +  TLV_CODE_NAME_LEN;
     char *tlv_buffer = (char *)msg->msg;
-    tlv_buffer_insert_tlv (tlv_buffer, TLV_CODE_NAME, TLV_CODE_NAME_LEN, entity_name);
+    tlv_buffer_insert_tlv (tlv_buffer, TLV_CODE_NAME, TLV_CODE_NAME_LEN, (char *)entity_name);
     int rc = pub_sub_dispatch_cmsg (sock_fd, msg);
     if (rc < 0) {
         printf ("Client : Error : Send Failed, errno = %d\n", errno);
@@ -171,7 +174,7 @@ subscriber_subscribe_ipc_channel (int sock_fd,
                                 ipc_struct_t *ipc_struct) {
 
     
-    int ipc_tlv = ipv_type_to_tlv_type (ipc_type);
+    int ipc_tlv = ipc_type_to_tlv_type (ipc_type);
     
     if (!ipc_tlv) {
         printf ("Client : Error : Invalid IPC Type\n");
@@ -191,7 +194,7 @@ subscriber_subscribe_ipc_channel (int sock_fd,
 
     uint8_t tlv_data_len = 0;
 
-    char *ipc_skt_tlv = tlv_buffer_get_particular_tlv (
+    char *ipc_tlv_value = tlv_buffer_get_particular_tlv (
                                                 (char *)subscriber_ipc_msg->msg,
                                                 subscriber_ipc_msg->tlv_buffer_size,
                                                 ipc_tlv, &tlv_data_len);
@@ -200,10 +203,16 @@ subscriber_subscribe_ipc_channel (int sock_fd,
 
         case TLV_IPC_NET_UDP_SKT:
         {
-            uint32_t *ip_addr = (uint32_t *)(ipc_skt_tlv);
+            uint32_t *ip_addr = (uint32_t *)(ipc_tlv_value);
             *ip_addr = htonl(ipc_struct->netskt.ip_addr);
-            uint16_t *port = (uint16_t *)(ipc_skt_tlv + 4);
+            uint16_t *port = (uint16_t *)(ipc_tlv_value + 4);
             *port = htons(ipc_struct->netskt.port);
+        }
+        break;
+        case TLV_IPC_TYPE_CBK:
+        {
+            pub_sub_cbk_t *cbk = (pub_sub_cbk_t *)ipc_tlv_value;
+            *cbk = ipc_struct->cbk.cbk;
         }
         break;
         default:
@@ -212,14 +221,7 @@ subscriber_subscribe_ipc_channel (int sock_fd,
             return;
     }
 
-    struct sockaddr_in server_addr;
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(COORD_UDP_PORT);
-    server_addr.sin_addr.s_addr = htonl(COORD_IP_ADDR);
-
-    int rc = sendto(sock_fd, (char *)subscriber_ipc_msg, 
-                            sizeof(*subscriber_ipc_msg) + subscriber_ipc_msg->tlv_buffer_size, 
-                            0, (struct sockaddr *)&server_addr, sizeof(struct sockaddr));
+    int rc = pub_sub_dispatch_cmsg (sock_fd, subscriber_ipc_msg);
 
     if (rc < 0) {
         printf("Client : Error : Send Failed, errno = %d\n", errno);
