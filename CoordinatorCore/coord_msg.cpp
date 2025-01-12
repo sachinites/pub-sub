@@ -94,7 +94,17 @@ coordinator_process_publisher_msg (cmsg_t *msg, size_t bytes_read) {
         break;
         case SUB_MSG_DATA:
         {
-            coordinator_accept_pubmsg_for_distribution_to_subcribers (msg);
+            /* This msg needs to be distributed among interested subscribers.*/
+            cmsg_t *copy_msg;
+            if (!cmsg_is_ips (msg)) {
+                 copy_msg = (cmsg_t *)calloc (1, bytes_read);
+                 copy_msg->ref_count = 1;
+                 memcpy (copy_msg, msg, bytes_read);
+            }
+            else {
+                copy_msg = msg; 
+            }
+            coordinator_accept_pubmsg_for_distribution_to_subcribers (copy_msg);
         }
         break;
         default:    ;
@@ -177,4 +187,3 @@ coordinator_process_subscriber_msg (cmsg_t *msg, size_t bytes_read) {
     }
     return NULL;
 }
-

@@ -1,6 +1,7 @@
 #ifndef __CMSG_OP__
 #define __CMSG_OP__
 
+#include "comm-types.h"
 
 cmsg_t *
 cmsg_data_prepare (msg_type_t msg_type, 

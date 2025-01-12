@@ -8,7 +8,7 @@
 #include "client.h"
 
 void *
-pub_example (void *_ipc_struct) {
+pub_skt_example (void *_ipc_struct) {
     
     int sock_fd;
 
@@ -54,7 +54,7 @@ pub_example (void *_ipc_struct) {
     printf ("Press any key to send Publisher Msg to Coordinator \n");
     getchar ();
 
-    const char *msg = "Hello World, I am a Publisher";
+    const char *msg = "Hello World, I am a Skt Publisher";
 
     cmsg_t *data_cmsg = cmsg_data_prepare (
                                         PUB_TO_COORD, 

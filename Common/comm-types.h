@@ -119,7 +119,8 @@ typedef enum error_codes_ {
 #define CMSG_MSG_F_ACK_REQUIRED (1)
  /* Coordinator Must distribute this message periodically */
 #define CMSG_MSG_F_PERIODIC_DIST  (2)
-
+/* Tell Coordinator that this message is IPS (through pointer) */
+#define CMSG_MSG_F_IPS  (4)
 
 typedef struct cmsg_meta_data_ {
 
@@ -155,6 +156,12 @@ typedef struct cmsg_ {
     char msg[0];
 
 } cmsg_t;
+
+static inline void 
+cmsg_set_ips (cmsg_t *cmsg) {cmsg->meta_data.flags |= CMSG_MSG_F_IPS;}    
+static inline bool
+cmsg_is_ips (cmsg_t *cmsg) {return cmsg->meta_data.flags & CMSG_MSG_F_IPS;} 
+
 
 static inline void 
 cmsg_reference (cmsg_t *cmsg) {cmsg->ref_count++;}  

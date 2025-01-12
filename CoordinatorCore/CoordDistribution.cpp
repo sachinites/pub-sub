@@ -138,6 +138,8 @@ coordinator_enqueue_distribution_queue (
     vdata->sub_entry = SubEntry;
     gdist_queue[queue_index]->Enqueue (vdata);
     queue_index++;
+
+    printf ("Coordinator : cmsg Enqueued in Distribution Queue\n");
 }
 
 
@@ -145,22 +147,19 @@ void
 coordinator_accept_pubmsg_for_distribution_to_subcribers (cmsg_t *cmsg) {
     
     /* Get the subscribers interested in this message */
+    cmsg->msg_type = COORD_TO_SUBS;
     pub_sub_db_entry_t *pub_sub_entry = pub_sub_db_get (cmsg->msg_code);
 
     if (!pub_sub_entry) {
+        cmsg_dereference (cmsg);
         return;
     }
 
-    cmsg_t *dist_msg = (cmsg_t *)  calloc   (1, sizeof (*dist_msg) + cmsg->tlv_buffer_size);
-    memcpy (dist_msg, cmsg, sizeof (cmsg_t) );
-    /* Now override the fields as required*/
-    dist_msg->msg_type = COORD_TO_SUBS;
-    dist_msg->tlv_buffer_size = cmsg->tlv_buffer_size;
-    memcpy (dist_msg->msg, (char *)cmsg->msg, cmsg->tlv_buffer_size);
     /* Distribute the message to interested subscribers */
     for (auto sub_entry : pub_sub_entry->subscribers) {
-        coordinator_enqueue_distribution_queue (dist_msg, sub_entry);
+        coordinator_enqueue_distribution_queue (cmsg, sub_entry);
     }
+
 }
 
 /* Finally dispatch the cmsg to Subscriber */
@@ -253,7 +252,6 @@ coordinator_dispatch (std::shared_ptr<subscriber_db_entry_t> SubEntry, cmsg_t *c
                 SubEntry->sub_name, SubEntry->subscriber_id);
 
             if (SubEntry->ipc_struct.cbk.cbk) {
-                cmsg_reference (cmsg);
                 SubEntry->ipc_struct.cbk.cbk (cmsg);
             }
             break;

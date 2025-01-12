@@ -12,6 +12,8 @@ subscriber_callback (cmsg_t *cmsg ) {
 
     printf ("Subscriber Callback : Msg Recvd\n");
     cmsg_debug_print (cmsg);
+    cmsg_reference (cmsg);
+    /* Do work with cmsg */
     cmsg_dereference (cmsg);
 }
 

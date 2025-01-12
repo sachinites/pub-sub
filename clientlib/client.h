@@ -1,6 +1,8 @@
 #ifndef __PIB_SUB_CLIENT_H__
 #define __PIB_SUB_CLIENT_H__
 
+/* This file contains APIs to be used by Pub-Sub Clients only */
+
 #include "../Common/comm-types.h"
 #include "../Common/cmsgOp.h"
 #include "../Common/ipc_struct.h"
