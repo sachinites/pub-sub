@@ -139,9 +139,8 @@ coordinator_enqueue_distribution_queue (
     gdist_queue[queue_index]->Enqueue (vdata);
     queue_index++;
 
-    printf ("Coordinator : cmsg Enqueued in Distribution Queue\n");
+    printf ("Coordinator : [cmsg, Sub : %s] Enqueued in Distribution Queue\n", SubEntry->sub_name);
 }
-
 
 void 
 coordinator_accept_pubmsg_for_distribution_to_subcribers (cmsg_t *cmsg) {
@@ -151,7 +150,7 @@ coordinator_accept_pubmsg_for_distribution_to_subcribers (cmsg_t *cmsg) {
     pub_sub_db_entry_t *pub_sub_entry = pub_sub_db_get (cmsg->msg_code);
 
     if (!pub_sub_entry) {
-        cmsg_dereference (cmsg);
+        if (!cmsg_is_ips (cmsg)) free (cmsg);
         return;
     }
 

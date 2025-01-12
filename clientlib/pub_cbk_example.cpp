@@ -57,7 +57,7 @@ pub_cbk_example (void *_ipc_struct) {
     cmsg_t *data_cmsg = cmsg_data_prepare (
                                         PUB_TO_COORD, 
                                         SUB_MSG_DATA, 
-                                        103, 
+                                        101, 
                                         true, 1, TLV_DATA_128);
     
     data_cmsg->id.publisher_id = pub_id;
@@ -72,7 +72,6 @@ pub_cbk_example (void *_ipc_struct) {
                                                 TLV_DATA_128, &tlv_data_len);
 
     strncpy (data_tlv_value, msg, strlen(msg));
-
     pub_sub_send_ips (data_cmsg);   
 
     return 0;

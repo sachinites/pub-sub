@@ -98,7 +98,7 @@ coordinator_process_publisher_msg (cmsg_t *msg, size_t bytes_read) {
             cmsg_t *copy_msg;
             if (!cmsg_is_ips (msg)) {
                  copy_msg = (cmsg_t *)calloc (1, bytes_read);
-                 copy_msg->ref_count = 1;
+                 copy_msg->ref_count = 0;
                  memcpy (copy_msg, msg, bytes_read);
             }
             else {

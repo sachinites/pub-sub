@@ -36,6 +36,7 @@ cmsg_data_prepare (msg_type_t msg_type,
     reply_msg->sub_msg_type = sub_msg_type;
     reply_msg->msg_code = msg_code;
     reply_msg->tlv_buffer_size = tlv_buffer_size;
+    reply_msg->ref_count = 1;
 
     char *tlv_buffer = (char *)reply_msg->msg;
 
