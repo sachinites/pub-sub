@@ -214,8 +214,8 @@ coordinator_reply (int sock_fd, cmsg_t *reply_msg, struct sockaddr_in *client_ad
     }
 }
 
-static void 
-coordinator_recv_msg_listen() {
+static void *
+coordinator_recv_msg_listen(void *arg) {
 
     int ret;
     fd_set readfds;
@@ -341,22 +341,21 @@ coordinator_recv_msg_listen() {
     /* Unreachable code*/
 }
 
-static void *
-coordinator_main_fn (void *arg) {
+static void 
+coordinator_fork_listener_thread() {
 
-    coordinator_init_sql_db();
-    coord_init_publisher_table();
-    coord_init_subscriber_table();
-    coord_init_pub_sub_table() ;
-    coordinator_fork_distribution_threads();
-    coordinator_recv_msg_listen();
-
-    return NULL;
+    static pthread_t udp_listener_thread;
+    pthread_create(&udp_listener_thread, NULL,  coordinator_recv_msg_listen, NULL);
 }
 
 void 
 coordinator_main() {
 
-    static pthread_t thread; 
-    pthread_create (&thread, NULL, coordinator_main_fn, NULL);  
+    coordinator_init_sql_db();
+    coord_init_publisher_table();
+    coord_init_subscriber_table();
+    coord_init_pub_sub_table() ;
+    coordinator_fork_listener_thread();
+    coordinator_fork_distribution_threads();
+
 }

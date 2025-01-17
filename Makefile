@@ -32,9 +32,9 @@ ${TARGET2}:${COORDINATOR_OBJS}
 	@echo "Building coordinator library"
 	ar rcs ${TARGET2} ${COORDINATOR_OBJS}
 
-${TARGET3}:CoordinatorCore/main.o ${COORDINATOR_OBJS}
+${TARGET3}:CoordinatorCore/coord_main.o ${COORDINATOR_OBJS}
 	@echo "Building coordinator executable"
-	${CC} -g CoordinatorCore/main.o ${COORDINATOR_OBJS} -o ${TARGET3} ${STLIBS}
+	${CC} -g CoordinatorCore/coord_main.o ${COORDINATOR_OBJS} -o ${TARGET3} ${STLIBS}
 
 ${TARGET4}:clientlib/pub_skt_main.o clientlib/pub_skt_example.o ${TARGET1}
 	@echo "Building publisher socket executable"
@@ -48,8 +48,8 @@ ${TARGET6}:MasterProcess.o clientlib/pub_skt_example.o clientlib/sub_skt_example
 	@echo "Building MasterProcess executable"
 	${CC} -g MasterProcess.o clientlib/pub_skt_example.o clientlib/sub_skt_example.o clientlib/sub_cbk_example.o clientlib/pub_cbk_example.o Common/clientcommon.o -o ${TARGET6} ${CLIIENTLIBS} ${COORDINATOR_LIBS} ${STLIBS} 
 
-CoordinatorCore/main.o:CoordinatorCore/main.cpp
-	${CC} ${CFLAGS} CoordinatorCore/main.cpp -o CoordinatorCore/main.o
+CoordinatorCore/coord_main.o:CoordinatorCore/coord_main.cpp
+	${CC} ${CFLAGS} CoordinatorCore/coord_main.cpp -o CoordinatorCore/coord_main.o
 
 CoordinatorCore/coord_start.o:CoordinatorCore/coord_start.cpp
 	${CC} ${CFLAGS} CoordinatorCore/coord_start.cpp -o CoordinatorCore/coord_start.o
@@ -110,5 +110,7 @@ clean:
 	rm -rf clientlib/*.o
 	rm -rf clientlib/*.a
 	rm -rf clientlib/*.exe
-	rm -rf *.o 
-	rm -rf *.exe
+	rm -f CoordinatorCore/*.o
+	rm -f CoordinatorCore/*.a
+	rm -f CoordinatorCore/*.exe
+	

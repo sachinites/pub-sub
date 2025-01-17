@@ -21,7 +21,7 @@ typedef struct publisher_db_entry_ {
     /*Array of Msgs published by this publisher */
     uint32_t published_msg_ids[MAX_PUBLISHED_MSG];
 
-    void clear() {
+    publisher_db_entry_ () {
         pub_name[0] = '\0';
         publisher_id = 0;
         memset (published_msg_ids, 0, sizeof (published_msg_ids));

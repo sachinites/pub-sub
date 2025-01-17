@@ -56,7 +56,7 @@ main (int argc, char **argv) {
         sub_cbk_example, (void *)&ipc_struct_sub_cbk);    
     getchar();
 
-#if 0
+
     printf ("Master Process : Starting Skt Publisher Thread\n");
     static pthread_t pub_skt_thread;
     pthread_attr_t pub_skt_attr;
@@ -64,9 +64,11 @@ main (int argc, char **argv) {
     static ipc_struct_t ipc_struct_pub_skt;
     ipc_struct_pub_skt.netskt.ip_addr =   2130706433 ; //127.0.0.1 
     ipc_struct_pub_skt.netskt.port = 50000;
-    pthread_create (&pub_skt_thread, &pub_skt_attr,  pub_skt_example, (void *)&ipc_struct_pub_skt);
+    pthread_create (&pub_skt_thread, 
+        &pub_skt_attr,
+        pub_skt_example, (void *)&ipc_struct_pub_skt);
     getchar();
-#endif
+
 
     printf ("Master Process : Starting Cbk Publisher Thread\n");
     static pthread_t pub_cbk_thread;

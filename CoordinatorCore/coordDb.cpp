@@ -211,7 +211,6 @@ publisher_db_create (uint32_t pub_id,
         return PubEntry;
 
     PubEntry = new publisher_db_entry_t;
-    memset (PubEntry, 0, sizeof(*PubEntry));
 
     strncpy(PubEntry->pub_name, pub_name, sizeof(PubEntry->pub_name));
     PubEntry->publisher_id = pub_id;
