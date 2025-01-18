@@ -153,7 +153,7 @@ typedef struct cmsg_ {
     cmsg_meta_data_t meta_data;
     uint32_t ref_count;
     uint16_t tlv_buffer_size;
-    char msg[0];
+    char tlv_buffer[0];
 
 } cmsg_t;
 

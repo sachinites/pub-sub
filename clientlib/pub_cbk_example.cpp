@@ -67,7 +67,7 @@ pub_cbk_example (void *_ipc_struct) {
 
     uint8_t tlv_data_len = 0;
     char *data_tlv_value = tlv_buffer_get_particular_tlv (
-                                                (char *)data_cmsg->msg,
+                                                (char *)data_cmsg->tlv_buffer,
                                                 data_cmsg->tlv_buffer_size,
                                                 TLV_DATA_128, &tlv_data_len);
 

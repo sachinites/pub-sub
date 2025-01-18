@@ -52,7 +52,7 @@ void
     msg->id.publisher_id = 0;   // This will be assigned by coordinator
     msg->id.subscriber_id = 0;  // This will be assigned by coordinator
     msg->tlv_buffer_size = TLV_OVERHEAD_SIZE +  TLV_CODE_NAME_LEN;
-    char *tlv_buffer = (char *)msg->msg;
+    char *tlv_buffer = (char *)msg->tlv_buffer;
     tlv_buffer_insert_tlv (tlv_buffer, TLV_CODE_NAME, TLV_CODE_NAME_LEN, (char *)entity_name);
     int rc = pub_sub_dispatch_cmsg (sock_fd, msg);
     if (rc < 0) {
@@ -195,7 +195,7 @@ subscriber_subscribe_ipc_channel (int sock_fd,
     uint8_t tlv_data_len = 0;
 
     char *ipc_tlv_value = tlv_buffer_get_particular_tlv (
-                                                (char *)subscriber_ipc_msg->msg,
+                                                (char *)subscriber_ipc_msg->tlv_buffer,
                                                 subscriber_ipc_msg->tlv_buffer_size,
                                                 ipc_tlv, &tlv_data_len);
 

@@ -444,7 +444,7 @@ coordinator_process_subscriber_ipc_subscription (
         return false;
     }
 
-    char *tlv_buffer = (char *)cmsg->msg;
+    char *tlv_buffer = (char *)cmsg->tlv_buffer;
     size_t tlv_bufer_size = cmsg->tlv_buffer_size;
     uint8_t tlv_data_len = 0;
     uint8_t tlv_type;

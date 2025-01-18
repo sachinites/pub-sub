@@ -49,7 +49,7 @@ coordinator_process_publisher_msg (cmsg_t *msg, size_t bytes_read) {
         case SUB_MSG_REGISTER:
         {
             /* New Publisher Registration */
-            char *tlv_buffer = (char *)msg->msg;
+            char *tlv_buffer = (char *)msg->tlv_buffer;
             size_t tlv_bufer_size = msg->tlv_buffer_size;
             uint8_t tlv_data_len = 0;
             char *pub_name = tlv_buffer_get_particular_tlv (
@@ -140,7 +140,7 @@ coordinator_process_subscriber_msg (cmsg_t *msg, size_t bytes_read) {
         case SUB_MSG_REGISTER:
         {
             /* New Subscriber Registration */
-            char *tlv_buffer = (char *)msg->msg;
+            char *tlv_buffer = (char *)msg->tlv_buffer;
             size_t tlv_bufer_size = msg->tlv_buffer_size;
             uint8_t tlv_data_len = 0;
             char *sub_name = tlv_buffer_get_particular_tlv (

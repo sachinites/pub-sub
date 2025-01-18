@@ -38,7 +38,7 @@ cmsg_data_prepare (msg_type_t msg_type,
     reply_msg->tlv_buffer_size = tlv_buffer_size;
     reply_msg->ref_count = 1;
 
-    char *tlv_buffer = (char *)reply_msg->msg;
+    char *tlv_buffer = (char *)reply_msg->tlv_buffer;
 
     va_start (tlv_ids_list, tlv_count);
 
@@ -80,7 +80,7 @@ cmsg_debug_print (cmsg_t *cmsg) {
     printf ("Subscriber ID : %u | ", cmsg->id.subscriber_id);
     printf ("TLV Buffer Size : %u | ", cmsg->tlv_buffer_size);
 
-    char *tlv_buffer = (char *)(cmsg->msg);
+    char *tlv_buffer = (char *)(cmsg->tlv_buffer);
     size_t tlv_bufer_size = cmsg->tlv_buffer_size;
     uint8_t tlv_type, tlv_len;
     char *tlv_value = NULL;
