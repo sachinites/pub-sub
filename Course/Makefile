@@ -10,7 +10,9 @@ TARGET:${TARGET2} ${TARGET3}
 STLIBS=-lpthread
 
 COORDINATOR_OBJS=CoordinatorCore/coord_start.o \
-				 CoordinatorCore/coordDb.o
+				 CoordinatorCore/coordDb.o \
+				 Common/cmsgOp.o
+
 
 ${TARGET2}:${COORDINATOR_OBJS}
 	@echo "Building coordinator library"
@@ -29,6 +31,9 @@ CoordinatorCore/coord_start.o:CoordinatorCore/coord_start.cpp
 CoordinatorCore/coordDb.o:CoordinatorCore/coordDb.cpp
 	${CC} ${CFLAGS} CoordinatorCore/coordDb.cpp -o CoordinatorCore/coordDb.o
 
+Common/cmsgOp.o:Common/cmsgOp.cpp
+	${CC} ${CFLAGS} Common/cmsgOp.cpp -o Common/cmsgOp.o
+
 clean:
 	rm -f *.a
 	rm -f *.exe
@@ -36,3 +41,5 @@ clean:
 	rm -f CoordinatorCore/*.o
 	rm -f CoordinatorCore/*.a
 	rm -f CoordinatorCore/*.exe
+	rm -rf Common/*.o
+	rm -rf Common/*.a
