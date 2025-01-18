@@ -241,3 +241,27 @@ pub_sub_db_entry_t* pub_sub_db_get(uint32_t msg_id) {
 
     return it->second;
 }
+
+void
+coord_db_display() {
+
+    printf ("Publisher DB\n");
+    for (auto it = pub_db.begin(); it != pub_db.end(); it++) {
+        printf ("Publisher ID : %u, Publisher Name : %s\n", 
+            it->second->publisher_id, it->second->pub_name);
+    }
+
+    printf ("Subscriber DB\n");
+    for (auto it = sub_db.begin(); it != sub_db.end(); it++) {
+        printf ("Subscriber ID : %u, Subscriber Name : %s\n", 
+            it->second->subscriber_id, it->second->sub_name);
+    }
+
+    printf ("Pub-Sub DB\n");
+    for (auto it = pub_sub_db.begin(); it != pub_sub_db.end(); it++) {
+        printf ("Message ID : %u\n", it->second->publish_msg_code);
+        for (auto& sub : it->second->subscribers) {
+            printf ("Subscriber ID : %u\n", sub->subscriber_id);
+        }
+    }
+}
