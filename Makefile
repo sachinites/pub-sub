@@ -4,8 +4,8 @@ CFLAGS=-g -c
 TARGET1=clientlib/libclient.a 
 TARGET2=CoordinatorCore/libcoord.a
 TARGET3=CoordinatorCore/coordinator.exe
-TARGET4=clientlib/pub_skt_main.exe 
-TARGET5=clientlib/sub_skt_main.exe 
+TARGET4=pub-sub-examples/pub_skt_main.exe 
+TARGET5=pub-sub-examples/sub_skt_main.exe 
 TARGET6=MasterProcess.exe
 
 
@@ -36,17 +36,17 @@ ${TARGET3}:CoordinatorCore/coord_main.o ${COORDINATOR_OBJS}
 	@echo "Building coordinator executable"
 	${CC} -g CoordinatorCore/coord_main.o ${COORDINATOR_OBJS} -o ${TARGET3} ${STLIBS}
 
-${TARGET4}:clientlib/pub_skt_main.o clientlib/pub_skt_example.o ${TARGET1}
+${TARGET4}:pub-sub-examples/pub_skt_main.o pub-sub-examples/pub_skt_example.o ${TARGET1}
 	@echo "Building publisher socket executable"
-	${CC} -g clientlib/pub_skt_main.o clientlib/pub_skt_example.o -o ${TARGET4} ${CLIIENTLIBS} ${STLIBS}
+	${CC} -g pub-sub-examples/pub_skt_main.o pub-sub-examples/pub_skt_example.o -o ${TARGET4} ${CLIIENTLIBS} ${STLIBS}
 
-${TARGET5}:clientlib/sub_skt_main.o clientlib/sub_skt_example.o ${TARGET1} ${TARGET2}
+${TARGET5}:pub-sub-examples/sub_skt_main.o pub-sub-examples/sub_skt_example.o ${TARGET1} ${TARGET2}
 	@echo "Building subscriber socket executable"
-	${CC} -g clientlib/sub_skt_main.o clientlib/sub_skt_example.o -o ${TARGET5} ${CLIIENTLIBS} ${STLIBS}
+	${CC} -g pub-sub-examples/sub_skt_main.o pub-sub-examples/sub_skt_example.o -o ${TARGET5} ${CLIIENTLIBS} ${STLIBS}
  
-${TARGET6}:MasterProcess.o clientlib/pub_skt_example.o clientlib/sub_skt_example.o clientlib/sub_cbk_example.o clientlib/pub_cbk_example.o Common/clientcommon.o ${TARGET1} ${TARGET2}
+${TARGET6}:MasterProcess.o pub-sub-examples/pub_skt_example.o pub-sub-examples/sub_skt_example.o pub-sub-examples/sub_cbk_example.o pub-sub-examples/pub_cbk_example.o Common/clientcommon.o ${TARGET1} ${TARGET2}
 	@echo "Building MasterProcess executable"
-	${CC} -g MasterProcess.o clientlib/pub_skt_example.o clientlib/sub_skt_example.o clientlib/sub_cbk_example.o clientlib/pub_cbk_example.o Common/clientcommon.o -o ${TARGET6} ${CLIIENTLIBS} ${COORDINATOR_LIBS} ${STLIBS} 
+	${CC} -g MasterProcess.o pub-sub-examples/pub_skt_example.o pub-sub-examples/sub_skt_example.o pub-sub-examples/sub_cbk_example.o pub-sub-examples/pub_cbk_example.o Common/clientcommon.o -o ${TARGET6} ${CLIIENTLIBS} ${COORDINATOR_LIBS} ${STLIBS} 
 
 CoordinatorCore/coord_main.o:CoordinatorCore/coord_main.cpp
 	${CC} ${CFLAGS} CoordinatorCore/coord_main.cpp -o CoordinatorCore/coord_main.o
@@ -78,23 +78,23 @@ clientlib/client.o:clientlib/client.cpp
 clientlib/clientcommon.o:clientlib/clientcommon.cpp
 	${CC} ${CFLAGS} clientlib/clientcommon.cpp -o clientlib/clientcommon.o
 
-clientlib/pub_skt_example.o:clientlib/pub_skt_example.cpp
-	${CC} ${CFLAGS} clientlib/pub_skt_example.cpp -o clientlib/pub_skt_example.o
+pub-sub-examples/pub_skt_example.o:pub-sub-examples/pub_skt_example.cpp
+	${CC} ${CFLAGS} pub-sub-examples/pub_skt_example.cpp -o pub-sub-examples/pub_skt_example.o
 
-clientlib/pub_cbk_example.o:clientlib/pub_cbk_example.cpp
-	${CC} ${CFLAGS} clientlib/pub_cbk_example.cpp -o clientlib/pub_cbk_example.o
+pub-sub-examples/pub_cbk_example.o:pub-sub-examples/pub_cbk_example.cpp
+	${CC} ${CFLAGS} pub-sub-examples/pub_cbk_example.cpp -o pub-sub-examples/pub_cbk_example.o
 
-clientlib/sub_cbk_example.o:clientlib/sub_cbk_example.cpp
-	${CC} ${CFLAGS} clientlib/sub_cbk_example.cpp -o clientlib/sub_cbk_example.o
+pub-sub-examples/sub_cbk_example.o:pub-sub-examples/sub_cbk_example.cpp
+	${CC} ${CFLAGS} pub-sub-examples/sub_cbk_example.cpp -o pub-sub-examples/sub_cbk_example.o
 
-clientlib/sub_skt_example.o:clientlib/sub_skt_example.cpp
-	${CC} ${CFLAGS} clientlib/sub_skt_example.cpp -o clientlib/sub_skt_example.o
+pub-sub-examples/sub_skt_example.o:pub-sub-examples/sub_skt_example.cpp
+	${CC} ${CFLAGS} pub-sub-examples/sub_skt_example.cpp -o pub-sub-examples/sub_skt_example.o
 
-clientlib/pub_skt_main.o:clientlib/pub_skt_main.cpp
-	${CC} ${CFLAGS} clientlib/pub_skt_main.cpp -o clientlib/pub_skt_main.o
+pub-sub-examples/pub_skt_main.o:pub-sub-examples/pub_skt_main.cpp
+	${CC} ${CFLAGS} pub-sub-examples/pub_skt_main.cpp -o pub-sub-examples/pub_skt_main.o
 
-clientlib/sub_skt_main.o:clientlib/sub_skt_main.cpp
-	${CC} ${CFLAGS} clientlib/sub_skt_main.cpp -o clientlib/sub_skt_main.o
+pub-sub-examples/sub_skt_main.o:pub-sub-examples/sub_skt_main.cpp
+	${CC} ${CFLAGS} pub-sub-examples/sub_skt_main.cpp -o pub-sub-examples/sub_skt_main.o
 
 MasterProcess.o:MasterProcess.cpp
 	${CC} ${CFLAGS} MasterProcess.cpp -o MasterProcess.o
@@ -113,4 +113,6 @@ clean:
 	rm -f CoordinatorCore/*.o
 	rm -f CoordinatorCore/*.a
 	rm -f CoordinatorCore/*.exe
+	rm -f pub-sub-examples/*.o 
+	rm -f pub-sub-examples/*.exe
 	

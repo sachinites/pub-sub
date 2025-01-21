@@ -5,20 +5,12 @@
 #include <stdio.h>
 #include <errno.h>
 #include <arpa/inet.h>
-#include "client.h"
+#include "../clientlib/client.h"
 
-void 
-subscriber_callback (cmsg_t *cmsg ) {
-
-    printf ("Subscriber Callback : Msg Recvd\n");
-    cmsg_debug_print (cmsg);
-    cmsg_reference (cmsg);
-    /* Do work with cmsg */
-    cmsg_dereference (cmsg);
-}
+static char buffer[1024];
 
 void *
-sub_cbk_example (void *_ipc_struct) {
+sub_skt_example (void *_ipc_struct) {
     
     int sock_fd;
 
@@ -33,8 +25,8 @@ sub_cbk_example (void *_ipc_struct) {
 
     struct sockaddr_in self_addr;
     self_addr.sin_family = AF_INET;
-    self_addr.sin_port = 0;  // will be assigned by bind
-    self_addr.sin_addr.s_addr = htonl(INADDR_ANY); // bind to all local ip addresses
+    self_addr.sin_port = htons(ipc_struct->netskt.port);
+    self_addr.sin_addr.s_addr = htonl(ipc_struct->netskt.ip_addr);
 
     if (bind(sock_fd, (struct sockaddr *)&self_addr, sizeof(struct sockaddr)) == -1)
     {
@@ -46,10 +38,10 @@ sub_cbk_example (void *_ipc_struct) {
     int rc; 
     cmsg_t cmsg;
 
-    coordinator_register (sock_fd, "Sub_CBK", SUBS_TO_COORD);
+    coordinator_register (sock_fd, "Sub1", SUBS_TO_COORD);
     rc = recvfrom (sock_fd, (char *)&cmsg, sizeof (cmsg), 
                             0, NULL, NULL);
-    printf ("Sub_CBK : Sub Msg ID allocated = %u\n", cmsg.id.subscriber_id);
+    printf ("Sub Msg ID allocated = %u\n", cmsg.id.subscriber_id);
     
     int sub_id = cmsg.id.subscriber_id;
 
@@ -59,9 +51,16 @@ sub_cbk_example (void *_ipc_struct) {
     subscriber_subscribe  (sock_fd, sub_id, 104);
 
     /* Report the channel of communication */
-    subscriber_subscribe_ipc_channel (sock_fd, sub_id, IPC_TYPE_CBK, ipc_struct);
+    subscriber_subscribe_ipc_channel (sock_fd, sub_id, IPC_TYPE_NETSKT, ipc_struct);
 
-    pause();
+    while (1) {
+        
+        rc = recvfrom (sock_fd, (char *)buffer, sizeof (buffer), 
+                            0, NULL, NULL);
+        printf ("Message recvd by Subscriber : Sub1\n");
+        cmsg_debug_print ((cmsg_t *)buffer);
+    }
+
     close (sock_fd);
 
     return 0;

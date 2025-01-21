@@ -50,6 +50,8 @@ typedef enum sub_msg_type_ {
     SUB_MSG_REGISTER,
     SUB_MSG_UNREGISTER,
 
+    SUB_MSG_ID_ALLOC_SUCCESS,
+
     /* ERROR */
     SUB_MSG_ERROR
 
@@ -70,6 +72,8 @@ sub_msg_type_to_string (sub_msg_type_t sub_msg_type) {
             return "SUB_MSG_REGISTER";
         case SUB_MSG_UNREGISTER:
             return "SUB_MSG_UNREGISTER";
+        case SUB_MSG_ID_ALLOC_SUCCESS:
+            return "SUB_MSG_ID_ALLOC_SUCCESS";
         case SUB_MSG_ERROR:
             return "SUB_MSG_ERROR";
     }
@@ -121,5 +125,47 @@ typedef struct cmsg_ {
     char tlv_buffer[0];
 
 }cmsg_t;
+
+typedef enum error_codes_ {
+
+    /* cmsg_t->msg_code , TLV buffer will contain what TLVs are expected */
+    ERROR_TLV_MISSING
+
+} error_codes_t;
+
+
+/* TLV definitions */
+
+#define TLV_CODE_NAME   1 
+#define TLV_CODE_NAME_LEN   32 
+
+static inline const char *
+tlv_str (int tlv_code_cpoint) {
+
+    switch (tlv_code_cpoint) {
+
+        case TLV_CODE_NAME:
+            return "TLV_CODE_NAME";
+        default:
+            return "UNKNOWN";
+    }
+
+    return "UNKNOWN";
+}
+
+static int 
+tlv_data_len (int tlv_code_point) {
+
+    switch (tlv_code_point) {
+
+        case TLV_CODE_NAME:
+            return TLV_CODE_NAME_LEN; 
+        default:
+            return 0;
+    }
+
+    return 0;
+}
+
 
 #endif

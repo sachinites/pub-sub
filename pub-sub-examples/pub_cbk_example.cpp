@@ -5,17 +5,16 @@
 #include <stdio.h>
 #include <errno.h>
 #include <arpa/inet.h>
-#include "client.h"
+#include "../Common/ipc_struct.h"
+#include "../Common/cmsgOp.h"
+#include "../Common/comm-types.h"
+#include "../clientlib/client.h"
+#include "../Common/clientcommon.h"
 
 void *
-pub_skt_example (void *_ipc_struct) {
+pub_cbk_example (void *_ipc_struct) {
     
     int sock_fd;
-
-    ipc_struct_t *ipc_struct = (ipc_struct_t *)_ipc_struct;
-
-    uint16_t port_no = ipc_struct->netskt.port;
-    uint32_t ip_addr = ipc_struct->netskt.ip_addr;
 
     sock_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
@@ -26,8 +25,8 @@ pub_skt_example (void *_ipc_struct) {
 
     struct sockaddr_in self_addr;
     self_addr.sin_family = AF_INET;
-    self_addr.sin_port = htons(port_no);
-    self_addr.sin_addr.s_addr = htonl(ip_addr);
+    self_addr.sin_port = 0;  // will be assigned by bind
+    self_addr.sin_addr.s_addr = htonl(INADDR_ANY); // bind to all local ip addresses
 
     if (bind(sock_fd, (struct sockaddr *)&self_addr, sizeof(struct sockaddr)) == -1)
     {
@@ -37,31 +36,30 @@ pub_skt_example (void *_ipc_struct) {
     }
 
     int rc; 
-    cmsg_t cmsg;;
+    cmsg_t cmsg;
 
-    coordinator_register (sock_fd, "Pub1", PUB_TO_COORD);
+    coordinator_register (sock_fd, "Pub_CBK", PUB_TO_COORD);
     rc = recvfrom (sock_fd, (char *)&cmsg, sizeof (cmsg), 
                             0, NULL, NULL);
-    printf ("Pub Msg ID allocated = %u\n", cmsg.id.publisher_id);
+    printf ("Pub_CBK : Pub Msg ID allocated = %u\n", cmsg.id.publisher_id);
     
     int pub_id = cmsg.id.publisher_id;
 
     /* Let Publisher Publish three message types */
-    publisher_publish (sock_fd, pub_id, 100);
-    publisher_publish (sock_fd, pub_id, 101);
-    publisher_publish (sock_fd, pub_id, 102);
+    publisher_publish  (sock_fd, pub_id, 103);
+    publisher_publish  (sock_fd, pub_id, 104);
+    publisher_publish  (sock_fd, pub_id, 105);
+    close (sock_fd);
 
-    printf ("Press any key to send Publisher Msg to Coordinator \n");
-    getchar ();
-
-    const char *msg = "Hello World, I am a Skt Publisher";
+    /* Send the IPS now*/
+    const char *msg = "Hello World, I am a CBK Publisher";
 
     cmsg_t *data_cmsg = cmsg_data_prepare (
                                         PUB_TO_COORD, 
                                         SUB_MSG_DATA, 
-                                        100, 
+                                        101, 
                                         true, 1, TLV_DATA_128);
-
+    
     data_cmsg->id.publisher_id = pub_id;
     data_cmsg->msg_id = 0; // This will be assigned by coordinator
     data_cmsg->priority = CMSG_PR_MEDIUM;
@@ -74,18 +72,7 @@ pub_skt_example (void *_ipc_struct) {
                                                 TLV_DATA_128, &tlv_data_len);
 
     strncpy (data_tlv_value, msg, strlen(msg));
+    pub_sub_send_ips (data_cmsg);   
 
-    pub_sub_dispatch_cmsg (sock_fd, data_cmsg);
-    free (data_cmsg);
-
-    printf ("Press any key to quit Publisher \n");
-    getchar ();
-
-    publisher_unpublish (sock_fd, pub_id, 100);
-    publisher_unpublish (sock_fd, pub_id, 101);
-    publisher_unpublish (sock_fd, pub_id, 102);
-    coordinator_unregister (sock_fd, pub_id, PUB_TO_COORD);
-    
-    close (sock_fd);
     return 0;
 }

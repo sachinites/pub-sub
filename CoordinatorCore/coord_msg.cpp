@@ -27,8 +27,6 @@ coordinator_process_publisher_msg (cmsg_t *msg, size_t bytes_read) {
 
     assert (msg->msg_type == PUB_TO_COORD);
 
-    memset (&reply_msg, 0, sizeof (reply_msg));
-
     msg->msg_id = coord_generate_id();
 
     switch (msg->sub_msg_type) {
@@ -60,17 +58,17 @@ coordinator_process_publisher_msg (cmsg_t *msg, size_t bytes_read) {
             if (!pub_name) {
                 
                 printf ("Coordinator : Error : Publisher Registration : Publisher Name TLV Missing\n");
-                return cmsg_data_prepare (COORD_TO_PUB, 
+                return  cmsg_data_prepare2 (COORD_TO_PUB, 
                     SUB_MSG_ERROR, 
-                    ERROR_TLV_MISSING, 1, false, TLV_CODE_NAME);
+                    ERROR_TLV_MISSING, 0);
             }
 
             publisher_db_entry_t* PubEntry = publisher_db_create (coord_generate_id() ,  pub_name);
 
-            cmsg_t *reply_msg =  cmsg_data_prepare (
+            cmsg_t *reply_msg =  cmsg_data_prepare2 (
                         COORD_TO_PUB, 
                         SUB_MSG_ID_ALLOC_SUCCESS, 
-                        0, false, 0);
+                        0, 0);
             reply_msg->id.publisher_id = PubEntry->publisher_id;
             printf ("Coordinator : New Publisher Registered with Pub ID %u\n", PubEntry->publisher_id);
             return reply_msg;

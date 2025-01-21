@@ -219,6 +219,7 @@ coordinator_recv_msg_listen(void *arg) {
 
     int ret;
     fd_set readfds;
+    ssize_t bytes_read;
     int sock_fd, addr_len, opt = 1;
     sub_msg_type_t sub_msg_code;
     cmsg_t *reply_msg = NULL;
@@ -264,81 +265,69 @@ coordinator_recv_msg_listen(void *arg) {
 
     while (1)
     {
-
         FD_ZERO(&readfds);
         FD_SET(sock_fd, &readfds);
-        //FD_SET(STDIN_FILENO, &readfds);
 
         select(sock_fd + 1, &readfds, NULL, NULL, NULL);
 
-        if (FD_ISSET(sock_fd, &readfds))
-        {
-            ssize_t bytes_read;
+        bytes_read = recvfrom(sock_fd, buffer, sizeof(buffer),
+                              0, (struct sockaddr *)&client_addr, (socklen_t *)&addr_len);
 
-            while (1)
+        if (bytes_read <= 0)
+            break;
+
+        buffer[bytes_read] = '\0';
+        cmsg_t *msg = (cmsg_t *)buffer;
+
+        switch (msg->msg_type)
+        {
+        case PUB_TO_COORD:
+
+            if (msg->id.publisher_id)
             {
-                bytes_read = recvfrom(sock_fd, buffer, sizeof(buffer),
-                                      0, (struct sockaddr *)&client_addr, (socklen_t *)&addr_len);
-
-                if (bytes_read <= 0) break;
-                
-                buffer[bytes_read] = '\0';
-                cmsg_t *msg = (cmsg_t *)buffer;
-
-                switch (msg->msg_type)
-                {
-                case PUB_TO_COORD:
-
-                    if (msg->id.publisher_id) {
-                        printf("Coordinator : Received message from publisher id = %u\n", msg->id.publisher_id);
-                    }
-                    else {
-                        printf("Coordinator : Received message from New publisher\n");
-                    }
-                    
-                    cmsg_debug_print (msg);
-
-                    reply_msg = coordinator_process_publisher_msg(msg, bytes_read);
-                    if (reply_msg)
-                    {
-                        coordinator_reply(sock_fd, reply_msg, &client_addr);
-                        free(reply_msg);
-                    }
-                    break;
-                case SUBS_TO_COORD:
-
-                    if (msg->id.subscriber_id) {
-                        printf("Coordinator : Received message from Subscriber id = %u\n", msg->id.subscriber_id);
-                    }
-                    else {
-                        printf("Coordinator : Received message from New Subscriber\n");
-                    }
-
-                    cmsg_debug_print (msg);
-                    
-                    reply_msg = coordinator_process_subscriber_msg(msg, bytes_read);
-                    if (reply_msg)
-                    {
-                        coordinator_reply(sock_fd, reply_msg, &client_addr);
-                        free(reply_msg);
-                    }
-                    break;
-                default:
-                    printf("Coordinator : Received unknown message type\n");
-                    break;
-                }
+                printf("Coordinator : Received message from publisher id = %u\n", msg->id.publisher_id);
             }
-        }
-        else if (FD_ISSET(STDIN_FILENO, &readfds))
-        {
+            else
+            {
+                printf("Coordinator : Received message from New publisher\n");
+            }
 
-            fgets(buffer, sizeof(buffer), stdin);
-            if (buffer[0] == '\n')
-                continue;
-            printf("echo : %s", buffer);
+            cmsg_debug_print(msg);
+
+            reply_msg = coordinator_process_publisher_msg(msg, bytes_read);
+            if (reply_msg)
+            {
+                coordinator_reply(sock_fd, reply_msg, &client_addr);
+                free(reply_msg);
+            }
+            break;
+        case SUBS_TO_COORD:
+
+            if (msg->id.subscriber_id)
+            {
+                printf("Coordinator : Received message from Subscriber id = %u\n", msg->id.subscriber_id);
+            }
+            else
+            {
+                printf("Coordinator : Received message from New Subscriber\n");
+            }
+
+            cmsg_debug_print(msg);
+
+            reply_msg = coordinator_process_subscriber_msg(msg, bytes_read);
+            if (reply_msg)
+            {
+                coordinator_reply(sock_fd, reply_msg, &client_addr);
+                free(reply_msg);
+            }
+            break;
+        default:
+            printf("Coordinator : Received unknown message type\n");
+            break;
         }
     }
     /* Unreachable code*/
+    return NULL;
 }
 
 static void 

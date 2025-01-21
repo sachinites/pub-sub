@@ -6,6 +6,21 @@
 #include "comm-types.h"
 #include "cmsgOp.h"
 
+cmsg_t *
+cmsg_data_prepare2 (msg_type_t msg_type, 
+                        sub_msg_type_t sub_msg_type, 
+                        uint32_t msg_code, 
+                        int trailing_space) {
+
+    cmsg_t *msg = (cmsg_t *)calloc (1, sizeof (cmsg_t) + trailing_space);
+    msg->msg_id = 0;
+    msg->msg_type = msg_type;
+    msg->sub_msg_type = sub_msg_type;
+    msg->msg_code = msg_code;
+    msg->tlv_buffer_size = trailing_space;
+    return msg;
+}
+
 void 
 cmsg_debug_print (cmsg_t *cmsg) {
 

@@ -11,7 +11,9 @@ STLIBS=-lpthread
 
 COORDINATOR_OBJS=CoordinatorCore/coord_start.o \
 				 CoordinatorCore/coordDb.o \
+				 CoordinatorCore/coord_msg.o \
 				 Common/cmsgOp.o
+
 
 
 ${TARGET2}:${COORDINATOR_OBJS}
@@ -30,6 +32,9 @@ CoordinatorCore/coord_start.o:CoordinatorCore/coord_start.cpp
 
 CoordinatorCore/coordDb.o:CoordinatorCore/coordDb.cpp
 	${CC} ${CFLAGS} CoordinatorCore/coordDb.cpp -o CoordinatorCore/coordDb.o
+
+CoordinatorCore/coord_msg.o:CoordinatorCore/coord_msg.cpp
+	${CC} ${CFLAGS} CoordinatorCore/coord_msg.cpp -o CoordinatorCore/coord_msg.o
 
 Common/cmsgOp.o:Common/cmsgOp.cpp
 	${CC} ${CFLAGS} Common/cmsgOp.cpp -o Common/cmsgOp.o
