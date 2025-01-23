@@ -9,6 +9,7 @@
 #include <pthread.h>
 #include <memory>
 #include <concepts>
+#include <algorithm>
 #include "../Libs/tlv.h"
 #include "pubsub.h"
 #include "CoordDb.h"
@@ -313,6 +314,9 @@ subscriber_db_delete (uint32_t sub_id) {
         close (SubEntry->ipc_struct.netskt.sock_fd);
     }   
 
+    /* Delete all occurrent of subscriber from pub-sub db also*/
+        pub_sub_db_delete_subscriber  (SubEntry);
+
     /* Delete entry from SUB-DB SQL Table */
     char sql_query[256];
     snprintf (sql_query, sizeof(sql_query), 
@@ -325,6 +329,9 @@ subscriber_db_delete (uint32_t sub_id) {
         printf("Coordinator : Error: Failed to delete Subscriber %u from SUB-DB table\n", sub_id);
     }
     PQclear(res);
+
+    /* ToDo : SQL query to delete subsciber from pub-sub DB*/
+    
 }
 
 bool 
@@ -628,4 +635,24 @@ pub_sub_db_get (uint32_t msg_id) {
     pub_sub_db_entry_t *res =  CORDCRUDOperations<uint32_t, pub_sub_db_entry_t *>::
         read(pub_sub_db, msg_id);
     return res;
+}
+
+void 
+pub_sub_db_delete_subscriber (std::shared_ptr<subscriber_db_entry_t> SubEntry) {
+    for (auto it = pub_sub_db.begin(); it != pub_sub_db.end(); ) {
+        pub_sub_db_entry_t *pubEntry = it->second;
+
+        // Remove the subscriber from the vector
+        auto &subscribers = pubEntry->subscribers;
+
+        subscribers.erase(std::remove(subscribers.begin(), subscribers.end(), SubEntry), subscribers.end());
+
+        // If no subscribers are left, delete the map entry
+        if (subscribers.empty()) {
+            delete pubEntry; // Free memory allocated for pubEntry
+            it = pub_sub_db.erase(it); // Erase the entry from the map
+        } else {
+            ++it; // Move to the next entry
+        }
+    }
 }

@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <unordered_map>
 #include <stdexcept>
+#include <algorithm>
 #include "pubsub.h"
 
 std::unordered_map<uint32_t , publisher_db_entry_t *>pub_db;
@@ -135,6 +136,7 @@ void subscriber_db_delete(uint32_t sub_id) {
     } else {
         printf("Subscriber with ID %u Not found.\n", sub_id);
     }
+    pub_sub_db_delete_subscriber  (it->second);
 }
 
 // Function to subscribe a message for a subscriber
@@ -240,6 +242,28 @@ pub_sub_db_entry_t* pub_sub_db_get(uint32_t msg_id) {
     }
 
     return it->second;
+}
+
+void 
+pub_sub_db_delete_subscriber (std::shared_ptr<subscriber_db_entry_t> SubEntry) {
+
+    for (auto it = pub_sub_db.begin(); it != pub_sub_db.end(); ) {
+    
+        pub_sub_db_entry_t *pubEntry = it->second;
+
+        // Remove the subscriber from the vector
+        auto &subscribers = pubEntry->subscribers;
+
+        subscribers.erase(std::remove(subscribers.begin(), subscribers.end(), SubEntry), subscribers.end());
+
+        // If no subscribers are left, delete the map entry
+        if (subscribers.empty()) {
+            delete pubEntry; // Free memory allocated for pubEntry
+            it = pub_sub_db.erase(it); // Erase the entry from the map
+        } else {
+            ++it; // Move to the next entry
+        }
+    }
 }
 
 void
