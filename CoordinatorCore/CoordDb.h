@@ -58,3 +58,6 @@ pub_sub_db_delete (uint32_t msg_id,
 
 pub_sub_db_entry_t *
 pub_sub_db_get (uint32_t msg_id);
+
+void 
+pub_sub_db_delete_subscriber (std::shared_ptr<subscriber_db_entry_t> SubEntry) ;
