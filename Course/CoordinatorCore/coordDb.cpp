@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <unordered_map>
 #include <stdexcept>
+#include "coordDb.h"
 #include "pubsub.h"
 
 std::unordered_map<uint32_t , publisher_db_entry_t *>pub_db;
@@ -138,7 +139,8 @@ void subscriber_db_delete(uint32_t sub_id) {
 }
 
 // Function to subscribe a message for a subscriber
-bool subscriber_subscribe_msg(uint32_t sub_id, uint32_t msg_id) {
+bool 
+subscriber_subscribe_msg(uint32_t sub_id, uint32_t msg_id) {
 
     subscriber_db_entry_t *SubEntry;
 
@@ -159,18 +161,27 @@ bool subscriber_subscribe_msg(uint32_t sub_id, uint32_t msg_id) {
 
         printf ("Coordinator : Subscriber %s subscribed to message %u Successfully\n", 
             SubEntry->sub_name, msg_id);
-        return true;
+        
+        break;
     }
 
-    return false;
+    /* Update publisher subscriber database also*/
+    pub_sub_db_create (msg_id, it->second);
+
+    return true;
 }
 
 // Function to unsubscribe a message for a subscriber
-bool subscriber_unsubscribe_msg(uint32_t sub_id, uint32_t msg_id) {
+bool 
+subscriber_unsubscribe_msg(uint32_t sub_id, uint32_t msg_id) {
+    
     auto it = sub_db.find(sub_id);
+
     if (it == sub_db.end()) {
+
         printf("%s() : Error : Subscriber with ID %u not found.\n", 
             __FUNCTION__, sub_id);
+        
         return false;
     }
 
@@ -178,19 +189,25 @@ bool subscriber_unsubscribe_msg(uint32_t sub_id, uint32_t msg_id) {
     auto& SubEntry = it->second;
 
     for (int i = 0; i < MAX_SUBSCRIBED_MSG; i++) {
+
         if (SubEntry->subscriber_msg_ids[i] == msg_id) {
             SubEntry->subscriber_msg_ids[i] = 0;
-            return true;
+            break;
         }
     }
 
-    return false;
+    /* Update publisher subscriber database also*/
+    pub_sub_db_delete (msg_id, sub_id);
+
+    return true;
 }
 
 
-
 // Function to create or update a pub_sub_db_entry_t in the database
-pub_sub_db_entry_t* pub_sub_db_create(uint32_t msg_id, std::shared_ptr<subscriber_db_entry_t> SubEntry) {
+pub_sub_db_entry_t* 
+pub_sub_db_create (uint32_t msg_id,         
+                                 std::shared_ptr<subscriber_db_entry_t> SubEntry) {
+
     auto it = pub_sub_db.find(msg_id);
     
     if (it == pub_sub_db.end()) {
@@ -211,7 +228,8 @@ pub_sub_db_entry_t* pub_sub_db_create(uint32_t msg_id, std::shared_ptr<subscribe
 }
 
 // Function to delete a subscriber from the database
-void pub_sub_db_delete(uint32_t msg_id, uint32_t sub_id) {
+void pub_sub_db_delete (uint32_t msg_id, uint32_t sub_id) {
+
     auto it = pub_sub_db.find(msg_id);
     if (it == pub_sub_db.end()) {
         std::cout << "No pub_sub_db entry found for msg_id " << msg_id << "\n";
@@ -229,6 +247,14 @@ void pub_sub_db_delete(uint32_t msg_id, uint32_t sub_id) {
             break;
         }
     }
+
+    // If no more subscribers, delete the entry
+    if (subscribers.empty()) {
+        delete entry;
+        pub_sub_db.erase(it);
+        std::cout << "Deleted pub_sub_db entry for msg_id " << msg_id << "\n";
+    }
+
 }
 
 // Function to get a pub_sub_db_entry_t from the database
@@ -249,12 +275,24 @@ coord_db_display() {
     for (auto it = pub_db.begin(); it != pub_db.end(); it++) {
         printf ("Publisher ID : %u, Publisher Name : %s\n", 
             it->second->publisher_id, it->second->pub_name);
+        /* print published messages*/
+        for (int i = 0; i < MAX_PUBLISHED_MSG; i++) {
+            if (it->second->published_msg_ids[i]) {
+                printf ("    Published Message ID : %u\n", it->second->published_msg_ids[i]);
+            }
+        }
     }
 
     printf ("Subscriber DB\n");
     for (auto it = sub_db.begin(); it != sub_db.end(); it++) {
         printf ("Subscriber ID : %u, Subscriber Name : %s\n", 
             it->second->subscriber_id, it->second->sub_name);
+        /* print subscribed messages*/
+        for (int i = 0; i < MAX_SUBSCRIBED_MSG; i++) {
+            if (it->second->subscriber_msg_ids[i]) {
+                printf ("    Subscribed Message ID : %u\n", it->second->subscriber_msg_ids[i]);
+            }
+        }
     }
 
     printf ("Pub-Sub DB\n");

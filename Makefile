@@ -102,14 +102,14 @@ MasterProcess.o:MasterProcess.cpp
 clean:
 	rm -f *.a
 	rm -f *.exe
-	rm -rf *.o 
-	rm -rf Libs/PostgresLibpq/*.o
-	rm -rf Libs/PostgresLibpq/*.a
-	rm -rf Common/*.o
-	rm -rf Common/*.a
-	rm -rf clientlib/*.o
-	rm -rf clientlib/*.a
-	rm -rf clientlib/*.exe
+	rm -f *.o 
+	rm -f Libs/PostgresLibpq/*.o
+	rm -f Libs/PostgresLibpq/*.a
+	rm -f Common/*.o
+	rm -f Common/*.a
+	rm -f clientlib/*.o
+	rm -f clientlib/*.a
+	rm -f clientlib/*.exe
 	rm -f CoordinatorCore/*.o
 	rm -f CoordinatorCore/*.a
 	rm -f CoordinatorCore/*.exe
