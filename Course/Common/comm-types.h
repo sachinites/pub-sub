@@ -121,6 +121,8 @@ typedef struct cmsg_ {
         uint32_t subscriber_id;
     } id;
 
+    uint32_t ref_count;
+
     uint16_t tlv_buffer_size;
     char tlv_buffer[0];
 
@@ -132,6 +134,18 @@ typedef enum error_codes_ {
     ERROR_TLV_MISSING
 
 } error_codes_t;
+
+static inline void 
+cmsg_reference (cmsg_t *cmsg) {cmsg->ref_count++;}  
+
+static inline void 
+cmsg_dereference (cmsg_t *cmsg) {
+    
+    assert(cmsg->ref_count);
+    cmsg->ref_count--;
+    if (cmsg->ref_count) return;
+    free (cmsg);
+}
 
 
 /* TLV definitions */
