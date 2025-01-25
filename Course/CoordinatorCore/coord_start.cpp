@@ -21,6 +21,9 @@ coordinator_process_publisher_msg (cmsg_t *msg, size_t bytes_read) ;
 extern cmsg_t *
 coordinator_process_subscriber_msg (cmsg_t *msg, size_t bytes_read);
 
+extern void 
+coordinator_fork_distribution_threads();
+
 static void 
 coordinator_reply (int sock_fd, cmsg_t *reply_msg, struct sockaddr_in *client_addr) {
 
@@ -140,7 +143,8 @@ void
 coordinator_main() {
 
     coordinator_fork_listener_thread();
-    //coordinator_fork_distribution_threads();
+    coordinator_fork_distribution_threads();
+
     while (1) {
         coord_db_display();
         getchar();

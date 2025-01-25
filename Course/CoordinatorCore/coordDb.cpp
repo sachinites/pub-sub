@@ -2,11 +2,8 @@
 #include <stdio.h>
 #include <unordered_map>
 #include <stdexcept>
-<<<<<<< HEAD
 #include "coordDb.h"
-=======
 #include <algorithm>
->>>>>>> 3ab67f88dcbf80154e8affb3b9c6b99e70046269
 #include "pubsub.h"
 
 std::unordered_map<uint32_t , publisher_db_entry_t *>pub_db;
