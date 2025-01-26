@@ -5,6 +5,9 @@
 #include "coordDb.h"
 #include "pubsub.h"
 
+extern void 
+coordinator_accept_pubmsg_for_distribution_to_subcribers (cmsg_t *cmsg) ;
+
 static uint32_t 
 coord_generate_id () {
 
@@ -72,7 +75,11 @@ coordinator_process_publisher_msg (cmsg_t *msg, size_t bytes_read) {
             bool rc = publisher_unpublish_msg (msg->id.publisher_id, msg->msg_code);
         }
         break;
-
+        case SUB_MSG_DATA:
+        {
+             coordinator_accept_pubmsg_for_distribution_to_subcribers (msg);
+        }
+        break;
     }
     return NULL;
 }

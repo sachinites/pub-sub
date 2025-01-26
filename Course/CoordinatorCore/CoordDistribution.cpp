@@ -90,8 +90,91 @@ class CoordDistQueue {
 
 };
 
+#define COORD_DIST_QUEUES_MAX 2
+static class CoordDistQueue *gdist_queue[COORD_DIST_QUEUES_MAX] = {0};
+
+static void
+coordinator_dispatch (std::shared_ptr<subscriber_db_entry_t> SubEntry, cmsg_t *cmsg) ;
+
+static void *
+coordinator_listen_distribution_queue (void *arg) {
+
+    vector_data_t *vdata;
+    CoordDistQueue *dist_queue = static_cast<CoordDistQueue *>(arg);
+
+    while ((vdata = dist_queue->Dequeue())) {
+
+        coordinator_dispatch (vdata->sub_entry, vdata->cmsg);
+        cmsg_dereference (vdata->cmsg);
+        vdata->sub_entry = nullptr;
+        free(vdata);
+    }
+
+    return NULL;
+}
+
 
 void 
 coordinator_fork_distribution_threads() {
 
+    pthread_t *thread;
+
+    for (int i = 0 ; i < COORD_DIST_QUEUES_MAX; i++) {
+
+        if (gdist_queue[i] == NULL) {
+
+            gdist_queue[i] = new CoordDistQueue();
+            thread = (pthread_t *)calloc (1, sizeof (pthread_t ));
+            pthread_create (thread, NULL, coordinator_listen_distribution_queue, (void *)gdist_queue[i]);
+        }
+    }
 } 
+
+/* USe Round Robin method for load balancing on Distribution Queues*/
+static void 
+coordinator_enqueue_distribution_queue (
+        cmsg_t *cmsg, 
+        std::shared_ptr<subscriber_db_entry_t> SubEntry) {
+
+    static int queue_index = 0;
+
+    if (queue_index >= COORD_DIST_QUEUES_MAX) {
+        queue_index = 0;
+    }
+
+     vector_data_t *vdata = (vector_data_t *)calloc (1, sizeof (vector_data_t));
+
+     vdata->cmsg = cmsg;
+     cmsg_reference (cmsg);
+     vdata->sub_entry = SubEntry;
+
+     gdist_queue[queue_index]->Enqueue(vdata);
+     queue_index++;
+
+    printf ("Coordinator : [cmsg, Sub : %s] Enqueued in Distribution Queue\n", SubEntry->sub_name);
+}
+
+void 
+coordinator_accept_pubmsg_for_distribution_to_subcribers (cmsg_t *cmsg)  {
+
+    cmsg->msg_type = COORD_TO_SUBS;
+
+    pub_sub_db_entry_t *pub_sub_entry = pub_sub_db_get (cmsg->msg_code);
+
+    if (!pub_sub_entry) {
+
+        return;
+    }
+
+    for (auto sub_entry : pub_sub_entry->subscribers) {
+
+        coordinator_enqueue_distribution_queue (cmsg, sub_entry);
+    }
+}
+
+void
+coordinator_dispatch (std::shared_ptr<subscriber_db_entry_t> SubEntry, cmsg_t *cmsg)  {
+
+    printf ("Distributing cmsg %u to Subscriber %s[%u]\n", 
+        cmsg->msg_id, SubEntry->sub_name, SubEntry->subscriber_id);
+}
