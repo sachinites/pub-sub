@@ -57,6 +57,24 @@ pub_skt_example(void *arg) {
     getchar ();
     publisher_publish (sock_fd, pub_id, 100);
     printf ("Press any key to publish message 200\n");
+    getchar();
+
+    /*
+    Let Publisher send a sample Data to the Coordinator of Msg Type 100
+    */
+   cmsg_t *data_cmsg = cmsg_data_prepare2 (PUB_TO_COORD,
+            SUB_MSG_DATA,
+            100,
+            TLV_OVERHEAD_SIZE + tlv_data_len (TLV_DATA_128));
+
+    data_cmsg->id.publisher_id = pub_id;
+    data_cmsg->priority = CMSG_PR_HIGH;
+    data_cmsg->ref_count = 1;
+    char *tlv_buffer = data_cmsg->tlv_buffer;
+    tlv_buffer_insert_tlv (tlv_buffer, 
+                        data_cmsg->tlv_buffer_size, 
+                        TLV_DATA_128, (char *)"Sample Data Sent by PUB1");
+
     getchar ();
     publisher_publish (sock_fd, pub_id, 200);
     printf ("Press any key to Unpublish message 100\n");

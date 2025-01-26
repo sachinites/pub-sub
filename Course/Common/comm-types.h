@@ -152,6 +152,8 @@ cmsg_dereference (cmsg_t *cmsg) {
 
 #define TLV_CODE_NAME   1 
 #define TLV_CODE_NAME_LEN   32 
+#define TLV_DATA_128    6
+#define TLV_DATA_256    7
 
 static inline const char *
 tlv_str (int tlv_code_cpoint) {
@@ -160,6 +162,10 @@ tlv_str (int tlv_code_cpoint) {
 
         case TLV_CODE_NAME:
             return "TLV_CODE_NAME";
+        case TLV_DATA_128:
+            return "TLV_DATA_128";
+        case TLV_DATA_256:
+            return "TLV_DATA_256";
         default:
             return "UNKNOWN";
     }
@@ -174,6 +180,10 @@ tlv_data_len (int tlv_code_point) {
 
         case TLV_CODE_NAME:
             return TLV_CODE_NAME_LEN; 
+        case TLV_DATA_128:
+            return 128;
+        case TLV_DATA_256:
+            return 256;
         default:
             return 0;
     }
