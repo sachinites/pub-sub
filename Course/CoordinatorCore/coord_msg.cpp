@@ -142,6 +142,11 @@ coordinator_process_subscriber_msg (cmsg_t *msg, size_t bytes_read) {
             subscriber_db_delete (msg->id.subscriber_id);
         }
         break;
+        case SUB_MSG_IPC_CHANNEL_ADD:
+        {
+            bool rc = coordinator_process_subscriber_ipc_subscription (msg->id.subscriber_id, msg);
+        }
+        break;
     }
     return NULL;
 }

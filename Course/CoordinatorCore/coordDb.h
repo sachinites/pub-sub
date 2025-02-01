@@ -35,7 +35,9 @@ bool
 subscriber_unsubscribe_msg (uint32_t sub_id, 
                             uint32_t msg_id); 
 
-
+bool 
+coordinator_process_subscriber_ipc_subscription (
+        uint32_t sub_id, cmsg_t *cmsg);
 
 /* Operations on PUB-SUB DB */
 

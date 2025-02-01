@@ -2,9 +2,15 @@
 #include <stdio.h>
 #include <unordered_map>
 #include <stdexcept>
-#include "coordDb.h"
+#include <assert.h>
 #include <algorithm>
+#include <arpa/inet.h>
+#include <stddef.h>
+#include "../Libs/tlv.h"
 #include "pubsub.h"
+#include "coordDb.h"
+#include "../Common/comm-types.h"
+#include "../Common/ipc_struct.h"
 
 std::unordered_map<uint32_t , publisher_db_entry_t *>pub_db;
 std::unordered_map<uint32_t , std::shared_ptr<subscriber_db_entry_t>>sub_db;
@@ -326,4 +332,67 @@ coord_db_display() {
             printf ("Subscriber ID : %u\n", sub->subscriber_id);
         }
     }
+}
+
+bool 
+coordinator_process_subscriber_ipc_subscription (
+        uint32_t sub_id, 
+        cmsg_t *cmsg) { 
+
+    assert (cmsg->msg_type == SUBS_TO_COORD);
+    assert (cmsg->sub_msg_type == SUB_MSG_IPC_CHANNEL_ADD);
+
+    auto it = sub_db.find(sub_id);
+
+    if (it == sub_db.end()) {
+        printf("%s() : Error : Subscriber with ID %u not found.\n", 
+            __FUNCTION__, sub_id);
+        return false;
+    }
+
+    // Add the message ID to the subscriber's subscribed messages
+    auto SubEntry = it->second.get();
+
+    if (SubEntry->ipc_type != IPC_TYPE_NONE) {
+        printf("Coordinator : Error: Subscriber [%s,%u] IPC Channel Already Exists\n", SubEntry->sub_name, SubEntry->subscriber_id);
+        return false;
+    }
+
+    if (cmsg->tlv_buffer_size == 0) {
+        printf("Coordinator : Error: Subscriber IPC Channel TLV Contains no IPC Data\n");
+        return false;
+    }
+
+    char *tlv_buffer = (char *)cmsg->tlv_buffer;
+    size_t tlv_buffer_size = cmsg->tlv_buffer_size;
+    uint8_t tlv_data_len = 0;
+    uint8_t tlv_type;
+    char *tlv_value;
+
+ITERATE_TLV_BEGIN(tlv_buffer, tlv_type, tlv_data_len, tlv_value, tlv_buffer_size) {
+
+    switch (tlv_type) {
+
+        case TLV_IPC_NET_UDP_SKT:
+        {
+                uint32_t ip_addr = *(uint32_t *)  (tlv_value);
+                ip_addr = htonl(ip_addr);
+                uint16_t port = *(uint16_t *) (tlv_value + 4);
+                port = htons(port);
+
+                printf("Coordinator : Subscriber [%s,%u] IPC Channel Add : IP Address %u, Port %u\n", 
+                    SubEntry->sub_name, SubEntry->subscriber_id, ip_addr, port);
+
+                SubEntry->ipc_type = IPC_TYPE_NETSKT;
+                SubEntry->ipc_struct.netskt.ip_addr = ip_addr;
+                SubEntry->ipc_struct.netskt.port = port;
+                SubEntry->ipc_struct.netskt.transport_type = IPPROTO_UDP;
+        }
+        break;
+
+    }
+
+} ITERATE_TLV_END;
+
+    return true;
 }

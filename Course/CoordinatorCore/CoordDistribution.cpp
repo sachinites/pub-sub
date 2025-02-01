@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <unordered_map>
 #include <pthread.h>
 #include <vector>
@@ -173,8 +174,99 @@ coordinator_accept_pubmsg_for_distribution_to_subcribers (cmsg_t *cmsg)  {
 }
 
 void
-coordinator_dispatch (std::shared_ptr<subscriber_db_entry_t> SubEntry, cmsg_t *cmsg)  {
+coordinator_dispatch (std::shared_ptr<subscriber_db_entry_t> SubEntry, cmsg_t *cmsg) {
 
-    printf ("Distributing cmsg %u to Subscriber %s[%u]\n", 
-        cmsg->msg_id, SubEntry->sub_name, SubEntry->subscriber_id);
+    printf ("Coordinator : Dispatching message to subscriber\n");
+    cmsg_debug_print (cmsg);
+
+    /* Now send the message to subscriber */
+    if (SubEntry->ipc_type == IPC_TYPE_NONE) {
+        printf ("Coordinator : Error : Subscriber [%s, %u] IPC Channel Not Set\n", SubEntry->sub_name, SubEntry->subscriber_id);
+        return;
+    }
+
+    switch (SubEntry->ipc_type) {
+
+        case IPC_TYPE_NETSKT:
+        {
+            printf ("Coordinator : Dispatching message to subscriber [%s, %u] over NETSKT\n",   
+                SubEntry->sub_name, SubEntry->subscriber_id);
+            uint32_t ip_addr = SubEntry->ipc_struct.netskt.ip_addr;
+            uint16_t port = SubEntry->ipc_struct.netskt.port;
+            uint8_t transport_type = SubEntry->ipc_struct.netskt.transport_type;
+            
+            if (transport_type != IPPROTO_UDP) {
+                printf ("Coordinator : Error : Unsupported Transport Type %u\n", transport_type);
+                return;
+            }
+
+            struct sockaddr_in server_addr;
+            server_addr.sin_family = AF_INET;
+            server_addr.sin_port = htons(port);
+            server_addr.sin_addr.s_addr = htonl(ip_addr);
+
+            if (SubEntry->ipc_struct.netskt.sock_fd > 0) {
+                
+                int rc = sendto (SubEntry->ipc_struct.netskt.sock_fd, 
+                    (char *)cmsg, sizeof (*cmsg) + cmsg->tlv_buffer_size, 0, 
+                    (struct sockaddr *)&server_addr, sizeof (struct sockaddr));
+
+                if (rc < 0) {
+                    printf ("Coordinator : Error : Send Failed, errno = %d\n", errno);
+                }
+
+                break;
+            }
+
+            /* Now send the message to subscriber */
+            int sock_fd = socket (AF_INET, SOCK_DGRAM, transport_type);
+
+            if (sock_fd < 0) {
+                printf ("Coordinator : Error : Socket Creation Failed\n");
+                return;
+            }
+
+            SubEntry->ipc_struct.netskt.sock_fd = sock_fd;
+
+            int rc = sendto (sock_fd, (char *)cmsg, sizeof (*cmsg) + cmsg->tlv_buffer_size, 0, 
+                        (struct sockaddr *)&server_addr, sizeof (struct sockaddr));
+
+            if (rc < 0) {
+                printf ("Coordinator : Error : Send Failed, errno = %d\n", errno);
+            }
+
+        }
+        break;
+
+        case IPC_TYPE_MSGQ:
+        {
+            printf ("Coordinator : Dispatching message to subscriber [%s, %u] over MQUEUE\n", 
+                SubEntry->sub_name, SubEntry->subscriber_id);
+            break;
+        }        
+        case IPC_TYPE_UXSKT:
+        {
+            printf ("Coordinator : Dispatching message to subscriber [%s, %u] over UXSKT\n", 
+                SubEntry->sub_name, SubEntry->subscriber_id);
+            break;
+        }        
+        case IPC_TYPE_SHM:
+        {
+            printf ("Coordinator : Dispatching message to subscriber [%s, %u] over SHM\n", 
+                SubEntry->sub_name, SubEntry->subscriber_id);
+            break;
+        }
+        case IPC_TYPE_CBK:
+        {
+            printf ("Coordinator : Dispatching message to subscriber [%s, %u] over CBK\n", 
+                SubEntry->sub_name, SubEntry->subscriber_id);
+
+            if (SubEntry->ipc_struct.cbk.cbk) {
+                SubEntry->ipc_struct.cbk.cbk (cmsg);
+            }
+            break;
+        }
+        default:
+            printf ("Coordinator : Error : Unknown IPC Type %u\n", SubEntry->ipc_type);
+    }
 }
